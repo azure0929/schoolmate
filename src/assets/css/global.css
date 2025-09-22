@@ -1,0 +1,52 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --primary-color: #f86166;
+  --secondary-color: #fde878;
+  --text-primary: #191919;
+  --error-color: #ff0000;
+  --border-color: #e0e0e0;
+}
+
+body {
+  font-family: "Pretendard", sans-serif;
+  font-size: 16px;
+  font-weight: normal;
+  margin: 0;
+  padding: 0;
+  color: var(--text-primary);
+}
+
+a {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+ol,
+ul {
+  list-style: none;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0;
+  padding: 0;
+}
+
+input,
+button,
+select {
+  color: var(--border-color);
+}
+
+button {
+  border: none;
+}
