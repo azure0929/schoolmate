@@ -63,10 +63,12 @@ const StyledInput = styled.input`
   outline: none;
   font-size: 1rem;
   padding: 0;
+  color: var(--text-color);
 `;
 
 const StyledButton = styled.button`
   width: 100%;
+  height: 56px;
   padding: 15px;
   margin-bottom: 15px;
   font-weight: bold;
@@ -89,9 +91,11 @@ const StyledButton = styled.button`
 `;
 
 const LinkContainer = styled.div`
-  margin-top: 10px;
-  font-size: 0.9rem;
-  color: #888;
+  border-top: 1px solid #929292;
+  margin-top: 44px;
+  padding-top: 12px;
+  width: 100%;
+  text-align: center;
   cursor: pointer;
 `;
 
