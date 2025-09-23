@@ -50,3 +50,15 @@ select {
 button {
   border: none;
 }
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* wrap */
+.wrap {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
