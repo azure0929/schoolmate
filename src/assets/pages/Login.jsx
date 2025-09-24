@@ -3,7 +3,60 @@ import Header from "@/assets/components/Header";
 import styled from "styled-components";
 import { MdOutlineEmail, MdLockOutline } from "react-icons/md";
 import KakaoLogo from "@/assets/images/kakao.png";
+import { useNavigate } from "react-router-dom";
 
+const Login = () => {
+  const navigate = useNavigate();
+
+  const handleSignUpClick = () => {
+    navigate("/signup");
+  };
+
+  return (
+    <LoginContainer>
+      <Header />
+      <Contents>
+        <TitleSection>
+          <MainTitle>
+            학교생활 여기어때? <br />
+            지금부터는 Fun!
+          </MainTitle>
+          <Subtitle>친구들과 소통하고, 포인트를 모아 혜택을 누리세요!</Subtitle>
+        </TitleSection>
+
+        <LoginForm>
+          <InputGroup>
+            <Icon>
+              <MdOutlineEmail />
+            </Icon>
+            <StyledInput type="email" placeholder="이메일" />
+          </InputGroup>
+
+          <InputGroup>
+            <Icon>
+              <MdLockOutline />
+            </Icon>
+            <StyledInput type="password" placeholder="비밀번호" />
+          </InputGroup>
+
+          <StyledButton type="submit" className="login">
+            로그인
+          </StyledButton>
+          <StyledButton type="button" className="kakao">
+            <KakaoLogoImage src={KakaoLogo} alt="카카오 로고" />
+            카카오 로그인
+          </StyledButton>
+        </LoginForm>
+
+        <LinkContainer onClick={handleSignUpClick}>회원가입</LinkContainer>
+      </Contents>
+    </LoginContainer>
+  );
+};
+
+export default Login;
+
+// 로그인 페이지 스타일
 const LoginContainer = styled.div`
   height: 100vh;
 `;
@@ -103,48 +156,3 @@ const KakaoLogoImage = styled.img`
   width: 34px;
   height: 34px;
 `;
-
-const Login = () => {
-  return (
-    <LoginContainer>
-      <Header />
-      <Contents>
-        <TitleSection>
-          <MainTitle>
-            학교생활 여기어때? <br />
-            지금부터는 Fun!
-          </MainTitle>
-          <Subtitle>친구들과 소통하고, 포인트를 모아 혜택을 누리세요!</Subtitle>
-        </TitleSection>
-
-        <LoginForm>
-          <InputGroup>
-            <Icon>
-              <MdOutlineEmail />
-            </Icon>
-            <StyledInput type="email" placeholder="이메일" />
-          </InputGroup>
-
-          <InputGroup>
-            <Icon>
-              <MdLockOutline />
-            </Icon>
-            <StyledInput type="password" placeholder="비밀번호" />
-          </InputGroup>
-
-          <StyledButton type="submit" className="login">
-            로그인
-          </StyledButton>
-          <StyledButton type="button" className="kakao">
-            <KakaoLogoImage src={KakaoLogo} alt="카카오 로고" />
-            카카오 로그인
-          </StyledButton>
-        </LoginForm>
-
-        <LinkContainer>회원가입</LinkContainer>
-      </Contents>
-    </LoginContainer>
-  );
-};
-
-export default Login;
