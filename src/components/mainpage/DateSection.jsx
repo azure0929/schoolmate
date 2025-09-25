@@ -8,7 +8,6 @@ function DatePointSection() {
         <span>포인트:</span>
         <PointText>13,000P</PointText>
       </PointInfo>
-      <LogoutButton>로그아웃</LogoutButton>
     </DatePointWrapper>
   );
 }

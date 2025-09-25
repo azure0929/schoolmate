@@ -1,108 +1,140 @@
 import React from "react";
-import styled from "styled-components";
+import styled, { createGlobalStyle } from "styled-components";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Pagination } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/pagination";
 
 function ProductSection() {
   const products = [
     {
       name: "스타벅스 아메리카노",
-      price: "4,500P",
-      src: "https://i.imgur.com/r0yD3XG.jpg",
+      src: "https://via.placeholder.com/284x284?text=Prod+1",
     },
     {
       name: "스타벅스 라떼",
-      price: "5,000P",
-      src: "https://i.imgur.com/gK2oM2L.jpg",
+      src: "https://via.placeholder.com/284x284?text=Prod+2",
     },
     {
       name: "투썸 초콜릿 케이크",
-      price: "6,500P",
-      src: "https://i.imgur.com/tYtQ5nK.jpg",
+      src: "https://via.placeholder.com/284x284?text=Prod+3",
     },
     {
       name: "BHC 뿌링클 (콜라 포함)",
-      price: "21,000P",
-      src: "https://i.imgur.com/8Q9lK7r.jpg",
+      src: "https://via.placeholder.com/284x284?text=Prod+4",
     },
     {
       name: "CU 모바일 상품권",
-      price: "10,000P",
-      src: "https://i.imgur.com/r0yD3XG.jpg",
+      src: "https://via.placeholder.com/284x284?text=Prod+5",
     },
-    // 추가 상품은 스크롤로 보여줄 수 있습니다.
+    {
+      name: "BBQ 황금올리브",
+      src: "https://via.placeholder.com/284x284?text=Prod+6",
+    },
+    {
+      name: "나이키 운동화",
+      src: "https://via.placeholder.com/284x284?text=Prod+7",
+    },
+    {
+      name: "CU 삼각김밥",
+      src: "https://via.placeholder.com/284x284?text=Prod+8",
+    },
   ];
+
+  const gap = 20;
+  const slidesPerView = 4;
 
   return (
     <SectionContainer>
+      <SwiperStyles />
       <SectionTitle>신규 상품은 뭐가 있을까?</SectionTitle>
-      <ProductGrid>
-        {products.map((product, index) => (
-          <ProductCard key={index}>
-            <ImagePlaceholder src={product.src} />
-            <ProductName>{product.name}</ProductName>
-            <ProductPrice>{product.price}</ProductPrice>
-          </ProductCard>
-        ))}
-      </ProductGrid>
+      <SwiperContainer>
+        <Swiper
+          slidesPerView={slidesPerView}
+          spaceBetween={gap}
+          modules={[Pagination]}
+          pagination={{
+            clickable: true,
+            el: ".product-pagination",
+          }}
+          initialSlide={0}
+          className="product-swiper"
+        >
+          {products.map((product, index) => (
+            <SwiperSlide key={index}>
+              <ProductCard>
+                <ImagePlaceholder $src={product.src} />
+                <div className="product-info">
+                  <ProductName>{product.name}</ProductName>
+                </div>
+              </ProductCard>
+            </SwiperSlide>
+          ))}
+        </Swiper>
+        <div className="product-pagination" />
+      </SwiperContainer>
     </SectionContainer>
   );
 }
 
 export default ProductSection;
 
-// ProductSection 스타일
+const SwiperStyles = createGlobalStyle`
+  .product-pagination {
+    margin-top: 30px; 
+    text-align: center;
+  }
+  
+  .product-pagination .swiper-pagination-bullet {
+    background: #ccc;
+    opacity: 1;
+    width: 10px;
+    height: 10px;
+    margin: 0 5px;
+    transition: background 0.3s;
+  }
+
+  .product-pagination .swiper-pagination-bullet-active {
+    background: var(--primary-color) !important; 
+  }
+`;
+
 const SectionContainer = styled.div`
-  padding: 20px 0;
+  margin-top: 120px;
 `;
 
 const SectionTitle = styled.h2`
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 15px;
-  color: #333;
+  font-size: 1.5rem;
+  font-weight: 500;
+  margin: 0;
+  margin-bottom: 20px;
 `;
 
-const ProductGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 20px;
-  overflow-x: auto; /* 상품 목록이 5개 이상일 경우 스크롤링 대비 */
-  padding-bottom: 10px;
+const SwiperContainer = styled.div`
+  padding-bottom: 50px;
 `;
 
 const ProductCard = styled.div`
   display: flex;
   flex-direction: column;
-  align-items: center;
   background-color: white;
   border-radius: 8px;
-  padding: 15px 10px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-  min-width: 200px;
   cursor: pointer;
+  .product-info {
+    margin-top: 14px;
+  }
 `;
 
 const ImagePlaceholder = styled.div`
-  width: 100px;
-  height: 100px;
-  background-color: #eee;
-  border-radius: 5px;
-  margin-bottom: 10px;
-  background-image: url(${(props) => props.src});
-  background-size: contain;
-  background-repeat: no-repeat;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  background-color: #eeeeee;
+  background-image: url(${(props) => props.$src});
+  background-size: cover;
   background-position: center;
 `;
 
-const ProductName = styled.div`
-  font-size: 14px;
+const ProductName = styled.span`
   font-weight: 500;
-  color: #333;
-  text-align: center;
-  margin-bottom: 5px;
-`;
-
-const ProductPrice = styled.div`
-  font-size: 13px;
-  font-weight: 600;
-  color: #e91e63;
 `;
