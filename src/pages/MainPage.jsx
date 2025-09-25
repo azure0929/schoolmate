@@ -3,9 +3,9 @@ import styled from "styled-components";
 import Header from "@/components/Header";
 import DateSection from "@/components/mainpage/DateSection";
 import TopMenu from "@/components/mainpage/TopMenu";
-import ScheduleSection from "@/components/mainpage/ScheduleSection";
-import IssueSection from "@/components/mainpage/IssueSection";
 import MealSection from "@/components/mainpage/MealSection";
+import IssueSection from "@/components/mainpage/IssueSection";
+import MealPhotoSection from "@/components/mainpage/MealPhotoSection";
 import ProductSection from "@/components/mainpage/ProductSection";
 
 const AppContainer = styled.div`
@@ -35,7 +35,7 @@ function App() {
 
         <Separator />
 
-        <ScheduleSection />
+        <MealSection />
 
         <Separator />
 
@@ -43,7 +43,7 @@ function App() {
 
         <Separator />
 
-        <MealSection />
+        <MealPhotoSection />
 
         <Separator />
 

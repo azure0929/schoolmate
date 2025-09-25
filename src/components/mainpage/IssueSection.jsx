@@ -1,29 +1,41 @@
 import React from "react";
 import styled from "styled-components";
+import issue1 from "@/assets/images/issue1.png";
+import issue2 from "@/assets/images/issue2.png";
+import issue3 from "@/assets/images/issue3.png";
+import issue4 from "@/assets/images/issue4.png";
 
 function IssueSection() {
   const issues = [
     {
       title: "우리 학교 벚꽃 맛집",
       description: "우리 동네 벚꽃 명소 TOP 5",
-      src: "https://i.imgur.com/r0yD3XG.jpg",
+      src: issue1,
+      url: "https://www.youtube.com/watch?v=OzRdp7nztHc",
     },
     {
-      title: "배달치킨 1+1",
-      description: "지금 시간 한정 선착순 모집",
-      src: "https://i.imgur.com/gK2oM2L.jpg",
+      title: "벼락치기 1등!",
+      description: "시험 기간 갓성비 간식 모음",
+      src: issue2,
+      url: "https://www.youtube.com/shorts/BXFhY6j0j8Y",
     },
     {
-      title: "숨겨진 극복!",
-      description: "고2 3학년 멤버 관리법",
-      src: "https://i.imgur.com/tYtQ5nK.jpg",
+      title: "슬럼프 극복!",
+      description: "고3 선배의 멘탈 관리법",
+      src: issue3,
+      url: "https://www.youtube.com/shorts/UPYeQ5wKj-Q",
     },
     {
-      title: "인생네컷 찍을 때 필수",
-      description: "인생샷 꿀팁 모음",
-      src: "https://i.imgur.com/8Q9lK7r.jpg",
+      title: "인생 네컷 찍을 때 필수!",
+      description: "힙한 포즈 모음",
+      src: issue4,
+      url: "https://www.youtube.com/watch?v=T_pIL2pWm1c",
     },
   ];
+
+  const handleOnClick = (url) => {
+    window.open(url, "_blank");
+  };
 
   return (
     <SectionWrapper>
@@ -31,11 +43,14 @@ function IssueSection() {
       <IssueGrid>
         {issues.map((issue, index) => (
           <IssueCard key={index}>
-            <ImageContainer $src={issue.src}>
-              <GradientOverlay />
-            </ImageContainer>
-            <TitleOverlay>{issue.title}</TitleOverlay>
-            <DescriptionOverlay>{issue.description}</DescriptionOverlay>
+            <ImageContainer
+              $src={issue.src}
+              onClick={() => handleOnClick(issue.url)}
+            ></ImageContainer>
+            <div className="issue-info">
+              <Title>{issue.title}</Title>
+              <Description>{issue.description}</Description>
+            </div>
           </IssueCard>
         ))}
       </IssueGrid>
@@ -50,67 +65,51 @@ const SectionWrapper = styled.section`
 `;
 
 const SectionTitle = styled.h2`
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 1.5rem;
+  font-weight: 500;
+  margin: 0;
   margin-bottom: 20px;
-  color: #333;
 `;
 
 const IssueGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(4, 1fr); /* 4열 그리드 */
-  gap: 20px; /* 카드 간 간격 */
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
 `;
 
 const IssueCard = styled.div`
   position: relative;
-  background-color: white;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
   cursor: pointer;
   transition: transform 0.2s ease-in-out;
 
   &:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+    transform: translateY(-10px);
+  }
+
+  .issue-info {
+    margin-top: 16px;
   }
 `;
 
 const ImageContainer = styled.div`
   width: 100%;
-  background-image: url(${(props) => props.$src}); /* props로 이미지 URL 받기 */
+  border-radius: 12px;
+  background-image: url(${(props) => props.$src});
   background-size: cover;
   background-position: center;
-  position: relative; /* 오버레이를 위해 */
+  position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  color: white;
   height: 400px;
-  padding: 15px;
 `;
 
-const TitleOverlay = styled.div`
-  font-size: 16px;
-  font-weight: 700;
-  margin-bottom: 5px;
-  z-index: 1; /* 텍스트가 그라디언트 위에 오도록 */
+const Title = styled.div`
+  font-size: 1.625rem;
+  font-weight: 600;
+  margin-bottom: 4px;
 `;
 
-const DescriptionOverlay = styled.div`
-  font-size: 12px;
-  font-weight: 400;
-  opacity: 0.8;
-  z-index: 1;
-`;
-
-const GradientOverlay = styled.div`
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 70%; /* 아래쪽 70%에 그라디언트 */
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0));
-  z-index: 0;
+const Description = styled.div`
+  font-size: 1.25rem;
+  font-weight: 500;
 `;
