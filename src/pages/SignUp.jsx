@@ -40,6 +40,7 @@ const SignUpForm = () => {
     password: "",
     confirmPassword: "",
     name: "",
+    nickname: "",
     birthdate: "",
     gender: "",
     phoneNumber: "",
@@ -163,18 +164,32 @@ const SignUpForm = () => {
             </InputWrapper>
           </div>
           <div className="input-wrap">
-            <InputWrapper>
-              <Icon>
-                <FaRegUser />
-              </Icon>
-              <Input
-                type="text"
-                name="name"
-                placeholder="이름"
-                value={formData.name}
-                onChange={handleChange}
-              />
-            </InputWrapper>
+            <div className="name">
+              <InputWrapper className="name-wrap">
+                <Icon>
+                  <FaRegUser />
+                </Icon>
+                <Input
+                  type="text"
+                  name="name"
+                  placeholder="이름"
+                  value={formData.name}
+                  onChange={handleChange}
+                />
+              </InputWrapper>
+              <InputWrapper className="name-wrap">
+                <Icon>
+                  <FaRegUser />
+                </Icon>
+                <Input
+                  type="text"
+                  name="nickname"
+                  placeholder="닉네임"
+                  value={formData.nickname}
+                  onChange={handleChange}
+                />
+              </InputWrapper>
+            </div>
             <InputWrapper>
               <Icon>
                 <MdOutlinePermContactCalendar />
@@ -356,6 +371,14 @@ const FormBox = styled.div`
   text-align: center;
   .input-wrap {
     margin-bottom: 40px;
+    .name {
+      display: flex;
+      gap: 16px;
+      justify-content: space-between;
+      .name-wrap {
+        width: 50%;
+      }
+    }
   }
 `;
 
