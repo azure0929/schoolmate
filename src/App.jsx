@@ -1,11 +1,11 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import MainPage from "@/assets/pages/MainPage";
-import Login from "@/assets/pages/Login";
-import SignUp from "@/assets/pages/SignUp";
-import PointShop from "@/assets/pages/PointShop";
-import PointHistory from "@/assets/pages/PointHistory";
-import Schedule from "@/assets/pages/Schedule";
-import HealthCheck from "@/assets/pages/HealthCheck";
+import MainPage from "@/pages/MainPage";
+import Login from "@/pages/Login";
+import SignUp from "@/pages/SignUp";
+import PointShop from "@/pages/PointShop";
+import PointHistory from "@/pages/PointHistory";
+import Schedule from "@/pages/Schedule";
+import HealthCheck from "@/pages/HealthCheck";
 
 function App() {
   return (
