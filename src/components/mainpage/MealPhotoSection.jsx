@@ -1,13 +1,19 @@
-import React from "react";
+import { useState } from "react";
 import styled, { createGlobalStyle } from "styled-components";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination, Grid } from "swiper/modules";
+import EatPhotoModal from "@/components/modals/EatPhotoModal";
 
 import "swiper/css";
 import "swiper/css/pagination";
 import "swiper/css/grid";
 
 function MealPhotoSection() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openModal = () => setIsModalOpen(true);
+  const closeModal = () => setIsModalOpen(false);
+
   const mealPhotos = Array(16)
     .fill(null)
     .map((_, i) => ({
@@ -20,7 +26,7 @@ function MealPhotoSection() {
       <SwiperStyles />
       <SectionHeader>
         <SectionTitle>급식 사진 (다른 학교 급식도 보자!)</SectionTitle>
-        <MoreButton>급식 사진 업로드</MoreButton>
+        <MoreButton onClick={openModal}>급식 사진 업로드</MoreButton>
       </SectionHeader>
       <PhotoSwiperContainer>
         <Swiper
@@ -47,6 +53,8 @@ function MealPhotoSection() {
         </Swiper>
         <div className="meal-photo-pagination" />
       </PhotoSwiperContainer>
+
+      <EatPhotoModal isOpen={isModalOpen} onClose={closeModal} />
     </SectionWrapper>
   );
 }
