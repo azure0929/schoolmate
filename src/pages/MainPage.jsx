@@ -1,6 +1,6 @@
 import React from "react";
 import styled from "styled-components";
-import Header from "@/components/Header";
+import Header from "@/components/common/Header";
 import DateSection from "@/components/mainpage/DateSection";
 import TopMenu from "@/components/mainpage/TopMenu";
 import MealSection from "@/components/mainpage/MealSection";
