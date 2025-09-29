@@ -8,11 +8,11 @@ import { useNavigate, useLocation } from "react-router-dom";
 
 function TopMenu() {
   const navigate = useNavigate();
-  const location = useLocation(); // 현재 URL 경로 정보를 가져온다.
+  const location = useLocation();
 
   const menus = [
     { name: "포인트샵", icon: <CiShop size={32} />, path: "/pointshop" },
-    { name: "포인트 현황", icon: <FaStar size={32} />, path: "/pointhisory" },
+    { name: "포인트 현황", icon: <FaStar size={32} />, path: "/pointhistory" },
     {
       name: "일정 관리",
       icon: <IoCalendarNumberOutline size={32} />,
