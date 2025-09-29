@@ -5,7 +5,7 @@ import SignUp from "@/pages/SignUp";
 import PointShop from "@/pages/PointShop";
 import PointHistory from "@/pages/PointHistory";
 import Schedule from "@/pages/Schedule";
-import HealthCheck from "@/pages/HealthCheck";
+import MyPage from "@/pages/MyPage";
 
 function App() {
   return (
@@ -18,7 +18,7 @@ function App() {
           <Route path="/pointshop" element={<PointShop />} />
           <Route path="/pointhistory" element={<PointHistory />} />
           <Route path="/schedule" element={<Schedule />} />
-          <Route path="/healthcheck" element={<HealthCheck />} />
+          <Route path="/mypage" element={<MyPage />} />
         </Routes>
       </BrowserRouter>
     </>

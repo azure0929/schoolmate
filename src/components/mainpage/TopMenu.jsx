@@ -18,11 +18,6 @@ function TopMenu() {
       icon: <IoCalendarNumberOutline size={32} />,
       path: "/schedule",
     },
-    {
-      name: "건강 관리",
-      icon: <FaHospitalUser size={32} />,
-      path: "/healthcheck",
-    },
   ];
 
   const handleClick = (path) => {
