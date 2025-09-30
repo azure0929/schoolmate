@@ -6,6 +6,7 @@ import PointShop from "@/pages/PointShop";
 import PointHistory from "@/pages/PointHistory";
 import Schedule from "@/pages/Schedule";
 import MyPage from "@/pages/MyPage";
+import Admin from "@/pages/admin/Admin";
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
           <Route path="/pointhistory" element={<PointHistory />} />
           <Route path="/schedule" element={<Schedule />} />
           <Route path="/mypage" element={<MyPage />} />
+          <Route path="/admin" element={<Admin />} />
         </Routes>
       </BrowserRouter>
     </>
