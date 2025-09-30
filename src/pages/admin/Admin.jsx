@@ -4,14 +4,19 @@ import { HiUserGroup } from "react-icons/hi";
 import { BsBoxes } from "react-icons/bs";
 import { BiSolidBarChartAlt2 } from "react-icons/bi";
 import logoWhite from "@/assets/images/logo_white.png";
+import { useNavigate } from "react-router-dom";
 
 import MemberManagement from "@/components/admin/MemberManagement";
 import ProductManagement from "@/components/admin/ProductManagement";
 import StatisticsManagement from "@/components/admin/StatisticsManagement";
 
-const Sidebar = ({ activeTab, onTabChange }) => {
+const Sidebar = ({ activeTab, onTabChange, navigate }) => {
   const handleLogout = () => {
-    console.log("로그아웃 로직");
+    // 1. 클라이언트 측 토큰 삭제
+    localStorage.removeItem("authToken");
+
+    // 2. 로그인 페이지로 redirect
+    navigate("/");
   };
 
   return (
@@ -68,10 +73,15 @@ const renderContent = (activeTab) => {
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState("member");
+  const navigate = useNavigate();
 
   return (
     <AdminLayout>
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <Sidebar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        navigate={navigate}
+      />
       <ContentContainer>{renderContent(activeTab)}</ContentContainer>
     </AdminLayout>
   );

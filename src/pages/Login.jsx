@@ -1,17 +1,96 @@
-import React from "react";
+import React, { useState } from "react";
 import Header from "@/components/common/Header";
 import styled from "styled-components";
 import { MdOutlineEmail, MdLockOutline } from "react-icons/md";
 import KakaoLogo from "@/assets/images/kakao.png";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
+
+// 환경 변수 안정화: 환경 변수가 로드되지 않을 경우 기본값 제공
+const BASE_API_URL =
+  import.meta.env.REACT_APP_API_URL || "http://localhost:9000/api";
+
+// Axios 인스턴스 생성 및 기본 URL 설정
+const api = axios.create({
+  baseURL: BASE_API_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
 
 const Login = () => {
   const navigate = useNavigate();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const handleSignUpClick = () => {
     navigate("/signup");
   };
 
+  // 로그인 제출 핸들러 함수 (axios 인스턴스 사용)
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (email === "" || password === "") {
+      alert("이메일과 비밀번호를 입력해주세요.");
+      return;
+    }
+
+    try {
+      // 인스턴스 사용: 전체 URL 대신 상대 경로만 사용
+      const response = await api.post("/auth/login", { email, password });
+
+      const token = response.headers.authorization?.split(" ")[1];
+
+      if (token) {
+        localStorage.setItem("authToken", token);
+
+        // 서버 응답 body에서 role을 확인하여 이동
+        if (response.data.role === "ADMIN") {
+          navigate("/admin");
+        } else {
+          // STUDENT 또는 다른 역할인 경우의 기본 경로
+          navigate("/");
+        }
+      } else {
+        console.error("로그인 성공했으나 JWT를 찾을 수 없습니다.");
+        alert("로그인에 실패했습니다: 토큰 오류");
+      }
+    } catch (error) {
+      let errorMessage = "로그인에 실패했습니다.";
+
+      if (error.response) {
+        // 서버 응답이 있는 경우 (401, 403 등)
+        try {
+          // 백엔드 LoginFilter의 unsuccessfulAuthentication 응답 파싱
+          // 응답이 JSON이 아니라 문자열로 올 가능성을 대비하여 .data만 사용
+          const errorResponseText = error.response.data;
+          // 백엔드 실패 응답: {"error": "로그인 실패", "message": "이메일 또는 비밀번호가 일치하지 않습니다."}
+          const errorData = JSON.parse(errorResponseText);
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          // JSON 파싱 실패 시, 상태 메시지 사용
+          errorMessage = error.response.statusText || errorMessage;
+        }
+        // 401 Unauthorized 일 때만 경고 메시지 출력
+        if (error.response.status === 401) {
+          errorMessage = "이메일 또는 비밀번호가 일치하지 않습니다.";
+        }
+      } else if (error.request) {
+        // 요청은 보냈으나 응답을 받지 못한 경우 (네트워크 에러)
+        errorMessage = "서버에 연결할 수 없습니다. (네트워크 또는 CORS 문제)";
+      } else {
+        // 요청 설정 중 문제 발생
+        errorMessage = "요청 설정 오류: " + error.message;
+      }
+
+      console.error("로그인 API 호출 에러:", error);
+      alert(errorMessage);
+    }
+  };
+
+  // ... (JSX, 스타일 코드는 변경 없음)
   return (
     <LoginContainer>
       <Header />
@@ -24,19 +103,30 @@ const Login = () => {
           <Subtitle>친구들과 소통하고, 포인트를 모아 혜택을 누리세요!</Subtitle>
         </TitleSection>
 
-        <LoginForm>
+        {/* 폼 제출 핸들러 연결 */}
+        <LoginForm onSubmit={handleSubmit}>
           <InputGroup>
             <Icon>
               <MdOutlineEmail />
             </Icon>
-            <StyledInput type="email" placeholder="이메일" />
+            <StyledInput
+              type="email"
+              placeholder="이메일"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
           </InputGroup>
 
           <InputGroup>
             <Icon>
               <MdLockOutline />
             </Icon>
-            <StyledInput type="password" placeholder="비밀번호" />
+            <StyledInput
+              type="password"
+              placeholder="비밀번호"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
           </InputGroup>
 
           <StyledButton type="submit" className="login">
@@ -56,7 +146,8 @@ const Login = () => {
 
 export default Login;
 
-// 로그인 페이지 스타일
+// (스타일 코드는 변경 없음. 길어서 생략합니다.)
+
 const LoginContainer = styled.div`
   height: 100vh;
 `;
