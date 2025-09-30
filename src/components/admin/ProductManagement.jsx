@@ -1,10 +1,37 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import styled, { css } from "styled-components";
 import { gsap } from "gsap";
 import { FiUpload } from "react-icons/fi";
 import PaginationControls from "@/components/common/PaginationControls";
+import axios from "axios";
 
-// Custom Hook: Alert 관리
+const BASE_API_URL =
+  import.meta.env.REACT_APP_API_URL || "http://localhost:9000/api";
+
+const api = axios.create({
+  baseURL: BASE_API_URL,
+});
+
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("authToken");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  },
+);
+
+// ... useAlert 및 CustomAlert 컴포넌트 (변경 없음) ...
 const useAlert = () => {
   const [alert, setAlert] = useState({
     message: null,
@@ -51,71 +78,7 @@ const CustomAlert = ({ message, type, alertKey }) => {
     </AlertContainer>
   );
 };
-
-// 더미 데이터
-const initialProductItems = [
-  {
-    id: 1,
-    name: "스타벅스 아메리카노(Ice)",
-    code: "P001",
-    points: "1,300P",
-    expiry: "2026.12.31",
-    regDate: "2025.09.01",
-    category: "CO",
-    quantity: 100,
-  },
-  {
-    id: 2,
-    name: "교촌 허니콤보",
-    code: "P002",
-    points: "1,300P",
-    expiry: "2026.12.31",
-    regDate: "2025.09.01",
-    category: "CH",
-    quantity: 50,
-  },
-  {
-    id: 3,
-    name: "CGV 영화 관람권",
-    code: "P003",
-    points: "12,000P",
-    expiry: "2026.12.31",
-    regDate: "2025.09.01",
-    category: "MO",
-    quantity: 200,
-  },
-  {
-    id: 4,
-    name: "GS25 모바일 상품권",
-    code: "P004",
-    points: "5,000P",
-    expiry: "2026.12.31",
-    regDate: "2025.09.01",
-    category: "CS",
-    quantity: 70,
-  },
-  {
-    id: 5,
-    name: "배달의 민족 1만원",
-    code: "P005",
-    points: "10,000P",
-    expiry: "2026.12.31",
-    regDate: "2025.09.01",
-    category: "BM",
-    quantity: 400,
-  },
-  {
-    id: 6,
-    name: "맥도날드 빅맥 세트",
-    code: "P006",
-    points: "1,300P",
-    expiry: "2025.09.01",
-    regDate: "2025.09.01",
-    category: "HA",
-    quantity: 30,
-  },
-];
-
+// ... 상품명 기반 카테고리 분류 (변경 없음) ...
 const categorizeProduct = (productName) => {
   const name = productName.toUpperCase();
   if (
@@ -124,86 +87,138 @@ const categorizeProduct = (productName) => {
     name.includes("아메리카노") ||
     name.includes("프라페")
   )
-    return "커피";
+    return "CO";
   if (
     name.includes("CU") ||
     name.includes("세븐일레븐") ||
     name.includes("GS25") ||
     name.includes("상품권")
   )
-    return "편의점";
+    return "CS";
   if (
     name.includes("배달의 민족") ||
     name.includes("쿠팡이츠") ||
     name.includes("요기요")
   )
-    return "배달음식";
+    return "BE";
   if (
     name.includes("CGV") ||
     name.includes("롯데시네마") ||
     name.includes("메가박스") ||
     name.includes("영화")
   )
-    return "영화";
-  return "기타";
+    return "MO";
+  return "ETC";
 };
+
+// 🚨 [상수 정의] 한 페이지당 상품 개수
+const PRODUCTS_PER_PAGE = 6;
 
 // ProductManagement Component
 const ProductManagement = () => {
-  const [productItems, setProductItems] = useState(initialProductItems);
+  const [productItems, setProductItems] = useState([]);
   const [selectedProducts, setSelectedProducts] = useState([]);
 
   // 페이지네이션 상태
   const [currentPage, setCurrentPage] = useState(1);
-  const totalPages = 5; // 임시 전체 페이지 수
+  const [totalPages, setTotalPages] = useState(1); // 🚨 [수정] totalPages 계산
 
   const [activeProductId, setActiveProductId] = useState(null);
 
   const [showDeletePopUp, setShowDeletePopUp] = useState(false);
   const [showEditPopUp, setShowEditPopUp] = useState(false);
   const [isDragOverDelete, setIsDragOverDelete] = useState(false);
-  const [selectedSidebarImage, setSelectedSidebarImage] = useState(null);
+
+  // 상품 등록/수정 상태
+  const [selectedImageFile, setSelectedImageFile] = useState(null);
+  const [selectedSidebarImage, setSelectedSidebarImage] = useState(null); // 미리보기 URL
 
   const [productName, setProductName] = useState("");
   const [productCategory, setProductCategory] = useState("");
   const [productPoints, setProductPoints] = useState("");
   const [productExpiry, setProductExpiry] = useState("");
   const [productQuantity, setProductQuantity] = useState("");
+  const [productStock, setProductStock] = useState("");
 
   const [alert, showAlert] = useAlert();
 
-  const gridRef = useRef(null);
   const fileInputRef = useRef(null);
-  const deleteButtonRef = useRef(null);
 
-  const activeProduct =
-    productItems.find((p) => p.id === activeProductId) || {};
+  // 무한 루프 방지 activeProduct는 useMemo로 계산 (productItems가 변경될 때만 재계산)
+  const activeProduct = useMemo(() => {
+    return productItems.find((p) => p.productId === activeProductId);
+  }, [productItems, activeProductId]);
+
+  // 상품 목록 로딩 로직 (useCallback 적용으로 함수 안정화)
+  const fetchProducts = useCallback(async () => {
+    console.log("-> [API CALL] GET /products 실행"); // 실행 확인을 위한 로그
+    try {
+      const response = await api.get("/products");
+      const items = response.data;
+      setProductItems(items);
+
+      // 🚨 [페이지네이션 로직] 총 페이지 수 계산
+      const totalPagesCount = Math.ceil(items.length / PRODUCTS_PER_PAGE);
+      setTotalPages(totalPagesCount > 0 ? totalPagesCount : 1);
+      // 현재 페이지가 새 총 페이지 수를 초과하지 않도록 보정
+      if (currentPage > totalPagesCount && totalPagesCount > 0) {
+        setCurrentPage(totalPagesCount);
+      } else if (totalPagesCount === 0) {
+        setCurrentPage(1);
+      }
+    } catch (error) {
+      console.error("상품 목록 로딩 실패:", error);
+      showAlert("상품 목록 로딩에 실패했습니다.", "error");
+    }
+  }, [showAlert, currentPage]); // currentPage를 의존성 배열에 추가하여 페이지 이동 후 로딩 시 보정 로직을 포함
 
   useEffect(() => {
-    if (activeProductId !== null) {
-      setProductName(activeProduct.name || "");
-      setProductPoints(
-        activeProduct.points?.replace("P", "").replace(",", "") || "",
+    fetchProducts();
+  }, []);
+
+  // 사이드바 상태 초기화 함수 분리
+  const resetSidebarState = useCallback(() => {
+    setActiveProductId(null);
+    setProductName("");
+    setProductCategory("");
+    setProductPoints("");
+    setProductExpiry("");
+    setProductQuantity("");
+    setProductStock("");
+    setSelectedSidebarImage(null);
+    setSelectedImageFile(null);
+  }, []);
+
+  useEffect(() => {
+    if (activeProduct) {
+      setProductName(activeProduct.productName || "");
+      setProductPoints(activeProduct.productPoints || "");
+
+      const formattedExpiry = activeProduct.expirationDate
+        ? String(activeProduct.expirationDate).split("T")[0]
+        : "";
+      setProductExpiry(formattedExpiry);
+
+      setProductQuantity(activeProduct.totalQuantity || "");
+      setProductStock(activeProduct.stock || "");
+      setProductCategory(
+        activeProduct.productCategory ||
+          categorizeProduct(activeProduct.productName || ""),
       );
-      setProductExpiry(activeProduct.expiry || "");
-      setProductQuantity(activeProduct.quantity || "");
 
-      const categoryName = categorizeProduct(activeProduct.name || "");
-      setProductCategory(categoryName);
-
-      setSelectedSidebarImage(null);
+      setSelectedSidebarImage(activeProduct.imageUrl || null);
+      setSelectedImageFile(null);
     } else {
-      setProductName("");
-      setProductCategory("");
-      setProductPoints("");
-      setProductExpiry("");
-      setProductQuantity("");
-      setSelectedSidebarImage(null);
+      resetSidebarState();
     }
-  }, [activeProductId, productItems]);
+  }, [activeProductId, activeProduct, resetSidebarState]);
 
   const handleProductInfoClick = (product) => {
-    setActiveProductId(product.id);
+    if (activeProductId === product.productId) {
+      setActiveProductId(null);
+    } else {
+      setActiveProductId(product.productId);
+    }
   };
 
   const handleProductCheck = (productId) => {
@@ -212,7 +227,13 @@ const ProductManagement = () => {
 
       if (isSelected) {
         const newSelected = prevSelected.filter((id) => id !== productId);
-        setActiveProductId(null);
+        // 선택 해제 시 초기화
+        if (newSelected.length === 0) {
+          resetSidebarState();
+        } else if (activeProductId === productId) {
+          // 체크 해제된 상품이 active 상품일 경우 다른 상품을 active로 설정하거나 null로 설정
+          setActiveProductId(newSelected[0] || null);
+        }
         return newSelected;
       } else {
         setActiveProductId(productId);
@@ -221,25 +242,82 @@ const ProductManagement = () => {
     });
   };
 
-  const handleRegisterOrEdit = () => {
-    if (selectedProducts.length > 0) {
-      setShowEditPopUp(true);
-    } else {
-      showAlert(
-        `새 상품 "${productName || "상품"}"이 등록되었습니다.`,
-        "success",
-      );
-    }
-  };
-
+  // 이미지 업로드 핸들러
   const handleImageUpload = (event) => {
     const file = event.target.files[0];
     if (file) {
+      setSelectedImageFile(file);
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setSelectedSidebarImage(reader.result);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  // 상품 등록 API 연동 로직 (FormData 및 Content-Type: undefined 유지)
+  const handleRegisterOrEdit = () => {
+    if (activeProductId) {
+      setShowEditPopUp(true); // 수정 팝업 띄우기
+    } else {
+      confirmRegister(); // 등록 즉시 실행
+    }
+  };
+
+  const confirmRegister = async () => {
+    if (
+      !productName ||
+      !productPoints ||
+      !productExpiry ||
+      !productQuantity ||
+      !productStock
+    ) {
+      showAlert(
+        "필수 항목(상품명, 포인트, 유효기간, 수량, 재고)을 모두 입력하세요.",
+        "warning",
+      );
+      return;
+    }
+
+    try {
+      const productData = {
+        productName: productName,
+        productPoints: parseInt(productPoints),
+        expirationDate: productExpiry, // YYYY-MM-DD 문자열 (백엔드 LocalDate와 매핑)
+        totalQuantity: parseInt(productQuantity),
+        stock: parseInt(productStock),
+      };
+
+      const formData = new FormData();
+      formData.append(
+        "product",
+        new Blob([JSON.stringify(productData)], { type: "application/json" }),
+      );
+
+      if (selectedImageFile) {
+        formData.append("file", selectedImageFile);
+      }
+
+      const response = await api.post("/products", formData, {
+        headers: {
+          "Content-Type": undefined, // FormData 사용 시 Content-Type은 axios가 설정하도록 undefined로 둡니다.
+        },
+      });
+
+      fetchProducts(); // 등록 성공 후 목록 새로고침
+      resetSidebarState(); // 등록 성공 후 상태 초기화
+
+      showAlert(
+        `새 상품 "${response.data.productName}"이 등록되었습니다.`,
+        "success",
+      );
+    } catch (error) {
+      console.error("상품 등록 실패:", error);
+      showAlert(
+        `상품 등록 실패: ${error.response?.data?.message || error.message}`,
+        "error",
+      );
     }
   };
 
@@ -256,73 +334,96 @@ const ProductManagement = () => {
     setShowEditPopUp(false);
   };
 
-  const confirmDelete = () => {
+  // 상품 삭제 API 연동 로직
+  const confirmDelete = async () => {
+    // 팝업 닫기
     setShowDeletePopUp(false);
 
-    const elementsToDelete = selectedProducts
-      .map((id) => gridRef.current?.querySelector(`.product-card-${id}`))
-      .filter((el) => el);
+    try {
+      for (const id of selectedProducts) {
+        await api.delete(`/products/${id}`);
+      }
 
-    if (elementsToDelete.length > 0) {
-      gsap.to(elementsToDelete, {
-        duration: 0.4,
-        opacity: 0,
-        scale: 0.8,
-        y: -10,
-        stagger: 0.05,
-        onComplete: () => {
-          setProductItems((prevItems) => {
-            const deletedCount = prevItems.filter((p) =>
-              selectedProducts.includes(p.id),
-            ).length;
+      fetchProducts(); // 삭제 성공 후 목록 새로고침
 
-            showAlert(`${deletedCount}개의 상품이 삭제되었습니다.`, "error");
-
-            return prevItems.filter((p) => !selectedProducts.includes(p.id));
-          });
-          setSelectedProducts([]);
-          setActiveProductId(null);
-        },
-      });
-    } else {
-      setProductItems((prevItems) =>
-        prevItems.filter((p) => !selectedProducts.includes(p.id)),
+      showAlert(
+        `${selectedProducts.length}개의 상품이 삭제되었습니다.`,
+        "error",
       );
       setSelectedProducts([]);
-      setActiveProductId(null);
-      showAlert(`상품이 삭제되었습니다.`, "error");
+      resetSidebarState(); // ⭐️ 삭제 성공 후 상태 초기화
+    } catch (error) {
+      console.error("상품 삭제 실패:", error);
+      showAlert(
+        `상품 삭제 실패: ${error.response?.data?.message || error.message}`,
+        "error",
+      );
     }
   };
 
-  const confirmEdit = () => {
+  // 상품 수정 API 연동 로직
+  const confirmEdit = async () => {
     if (!activeProductId) {
       setShowEditPopUp(false);
       return;
     }
 
-    const updatedProductItems = productItems.map((product) => {
-      if (product.id === activeProductId) {
-        const updatedProduct = {
-          ...product,
-          name: productName,
-          points: `${new Intl.NumberFormat().format(productPoints)}P`,
-          expiry: productExpiry,
-          quantity: parseInt(productQuantity) || 0,
-          category: categorizeProduct(productName),
-        };
-        return updatedProduct;
-      }
-      return product;
-    });
-
-    setProductItems(updatedProductItems);
-
+    // 팝업 닫기
     setShowEditPopUp(false);
 
-    showAlert(`상품 ID ${activeProductId}의 정보가 수정되었습니다.`, "success");
+    try {
+      const updatedProductData = {
+        productName: productName,
+        productPoints: parseInt(productPoints),
+        expirationDate: productExpiry,
+        totalQuantity: parseInt(productQuantity),
+        stock: parseInt(productStock),
+      };
+
+      // 이미지 파일이 선택된 경우 FormData를 사용하여 이미지와 데이터를 함께 전송
+      const formData = new FormData();
+      formData.append(
+        "product",
+        new Blob([JSON.stringify(updatedProductData)], {
+          type: "application/json",
+        }),
+      );
+
+      // 파일 유무와 상관없이 FormData를 사용합니다. (백엔드 @RequestPart(required=false) 가정)
+      if (selectedImageFile) {
+        formData.append("file", selectedImageFile);
+      }
+
+      await api.put(`/products/${activeProductId}`, formData, {
+        headers: {
+          "Content-Type": undefined, // FormData 사용 시 undefined로 설정
+        },
+      });
+
+      fetchProducts(); // 수정 성공 후 목록 새로고침
+
+      // CustomAlert 호출
+      showAlert(
+        `상품 ID ${activeProductId}의 정보가 수정되었습니다.`,
+        "success",
+      );
+    } catch (error) {
+      console.error("상품 수정 실패:", error);
+      showAlert(
+        `상품 수정 실패: ${error.response?.data?.message || error.message}`,
+        "error",
+      );
+    }
   };
 
-  // 드래그 앤 드롭 핸들러
+  // 🚨 [핵심 수정] 현재 페이지에 해당하는 상품 목록만 필터링
+  const paginatedProducts = useMemo(() => {
+    const startIndex = (currentPage - 1) * PRODUCTS_PER_PAGE;
+    const endIndex = startIndex + PRODUCTS_PER_PAGE;
+    return productItems.slice(startIndex, endIndex);
+  }, [productItems, currentPage]);
+
+  // 드래그 앤 드롭 핸들러 (기존 유지)
   const handleDragStart = (e, productId) => {
     e.dataTransfer.setData("productId", productId.toString());
     if (!selectedProducts.includes(productId)) {
@@ -355,10 +456,8 @@ const ProductManagement = () => {
     }
   };
 
-  // 페이지 이동 핸들러
   const handlePageChange = (page) => {
     setCurrentPage(page);
-    // TODO: 실제 API 호출 또는 상품 목록 필터링 로직 추가
     console.log(`페이지 ${page}로 이동`);
   };
 
@@ -369,7 +468,6 @@ const ProductManagement = () => {
         type={alert.type}
         alertKey={alert.key}
       />
-
       <PageTitle>상품 정보</PageTitle>
 
       <SearchBarContainer>
@@ -391,7 +489,7 @@ const ProductManagement = () => {
           onDrop={handleDrop}
           $dragOver={isDragOverDelete}
         >
-          <Button $primary ref={deleteButtonRef} onClick={handleDeleteClick}>
+          <Button $primary onClick={handleDeleteClick}>
             선택 삭제
           </Button>
           <Button $primary>전체 삭제</Button>
@@ -399,33 +497,54 @@ const ProductManagement = () => {
       </SearchBarContainer>
 
       <MainContentArea>
-        <ProductGrid ref={gridRef}>
-          {productItems.map((product) => (
+        <ProductGrid>
+          {/* 🚨 [수정] productItems 대신 paginatedProducts 사용 */}
+          {paginatedProducts.map((product) => (
             <ProductCard
-              key={product.id}
-              className={`product-card-${product.id}`}
+              key={product.productId}
+              className={`product-card-${product.productId}`}
               onClick={() => handleProductInfoClick(product)}
               $selected={
-                selectedProducts.includes(product.id) ||
-                activeProductId === product.id
+                selectedProducts.includes(product.productId) ||
+                activeProductId === product.productId
               }
               draggable="true"
-              onDragStart={(e) => handleDragStart(e, product.id)}
+              onDragStart={(e) => handleDragStart(e, product.productId)}
             >
               <Checkbox
-                checked={selectedProducts.includes(product.id)}
-                onChange={() => handleProductCheck(product.id)}
+                checked={selectedProducts.includes(product.productId)}
+                onChange={() => handleProductCheck(product.productId)}
                 onClick={(e) => e.stopPropagation()}
               />
               <ProductImage className="dummy-img">
-                {/* 이미지 배치 */}
+                {product.imageUrl && (
+                  <img
+                    src={product.imageUrl}
+                    alt={product.productName}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                  />
+                )}
               </ProductImage>
               <ProductInfo>
-                <p>상품번호: {product.code}</p>
-                <p>상품명: {product.name}</p>
-                <p>포인트: {product.points}</p>
-                <p>유효기간: {product.expiry}</p>
-                <p>등록일자: {product.regDate}</p>
+                <p>상품번호: {product.productCode}</p>
+                <p>상품명: {product.productName}</p>
+                <p>
+                  포인트:{" "}
+                  {new Intl.NumberFormat().format(product.productPoints)}P
+                </p>
+                <p>
+                  {/* 🚨 [수정] YYYY-MM-DD 문자열을 그대로 사용하거나 Date() 처리 방식을 보정 */}
+                  유효기간: {String(product.expirationDate).split("T")[0]}
+                </p>
+                <p>
+                  {/* 🚨 [수정] YYYY-MM-DD 문자열을 그대로 사용하거나 Date() 처리 방식을 보정 */}
+                  등록일자: {String(product.registrationDate).split("T")[0]}
+                </p>
+                <p>재고: {product.stock}</p>
               </ProductInfo>
             </ProductCard>
           ))}
@@ -467,12 +586,12 @@ const ProductManagement = () => {
                     setProductName(e.target.value);
                     setProductCategory(categorizeProduct(e.target.value));
                   }}
-                  placeholder="상품을 선택해주세요."
+                  placeholder="상품을 선택하거나 입력해주세요."
                 />
               </div>
               <div style={{ width: "70px", position: "relative" }}>
                 <SidebarLabel htmlFor="product-category">
-                  상품 카테고리:
+                  카테고리:
                 </SidebarLabel>
                 <SidebarInput
                   id="product-category"
@@ -492,6 +611,7 @@ const ProductManagement = () => {
               <div style={{ position: "relative" }}>
                 <SidebarInput
                   id="product-points"
+                  type="number"
                   value={productPoints}
                   onChange={(e) => setProductPoints(e.target.value)}
                   placeholder="0"
@@ -503,44 +623,54 @@ const ProductManagement = () => {
               <SidebarLabel htmlFor="product-expiry">유효기간:</SidebarLabel>
               <SidebarInput
                 id="product-expiry"
+                type="date"
                 value={productExpiry}
                 onChange={(e) => setProductExpiry(e.target.value)}
-                placeholder="YYYY.MM.DD"
+                placeholder="YYYY-MM-DD"
               />
             </div>
           </InlineInputGroup>
 
-          <ProductInputGroup>
-            <SidebarLabel htmlFor="product-quantity">전체 수량:</SidebarLabel>
-            <SidebarInput
-              id="product-quantity"
-              value={productQuantity}
-              onChange={(e) => setProductQuantity(e.target.value)}
-              placeholder="0"
-            />
-            <QuantityInfo>
-              {productQuantity || 0}/{productQuantity || 0}
-            </QuantityInfo>
-          </ProductInputGroup>
+          <InlineInputGroup className="split-row">
+            <div>
+              <SidebarLabel htmlFor="product-quantity">전체 수량:</SidebarLabel>
+              <SidebarInput
+                id="product-quantity"
+                type="number"
+                value={productQuantity}
+                onChange={(e) => setProductQuantity(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <SidebarLabel htmlFor="product-stock">현재 재고:</SidebarLabel>
+              <SidebarInput
+                id="product-stock"
+                type="number"
+                value={productStock}
+                onChange={(e) => setProductStock(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+          </InlineInputGroup>
 
           <Button
             $primary
             style={{ width: "100%", marginTop: "auto" }}
             onClick={handleRegisterOrEdit}
           >
-            {selectedProducts.length > 0 ? "수정" : "등록"}
+            {activeProductId ? "수정" : "등록"}
           </Button>
         </ProductSidebar>
       </MainContentArea>
 
-      {/* 분리된 PaginationControls 컴포넌트 사용 */}
       <PaginationControls
         currentPage={currentPage}
         totalPages={totalPages}
         onPageChange={handlePageChange}
       />
 
-      {/* 팝업 코드 유지 */}
+      {/* 수정 팝업 */}
       {showEditPopUp && (
         <PopUpOverlay>
           <PopUpContent>
@@ -553,6 +683,7 @@ const ProductManagement = () => {
         </PopUpOverlay>
       )}
 
+      {/* 삭제 팝업 */}
       {showDeletePopUp && (
         <PopUpOverlay>
           <PopUpContent>
@@ -570,7 +701,7 @@ const ProductManagement = () => {
 
 export default ProductManagement;
 
-// Alert 컬러 커스텀
+// ... (스타일 컴포넌트 코드는 변경 없음) ...
 const ALERT_COLORS = {
   success: { background: "#4CAF50", color: "#FFFFFF" },
   error: { background: "#ff0000", color: "#FFFFFF" },
