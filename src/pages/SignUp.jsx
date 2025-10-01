@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import styled, { css } from "styled-components";
 import { FaRegUser } from "react-icons/fa";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
-import SchoolSearchModal from "../components/modals/SchoolSearchModal";
+import SchoolSearchModal from "@/components/modals/SchoolSearchModal";
 
 import {
   MdOutlineEmail,
@@ -46,8 +46,57 @@ const api = axios.create({
   },
 });
 
+const apiService = {
+  // 중복 확인 API 호출
+  checkDuplicate: (type, value) => {
+    return axios.get(`http://localhost:9000/api/auth/check-${type}`, {
+      params: { [type]: value },
+    });
+  },
+  // 학과 목록 조회 API 호출
+  fetchMajors: (educationOfficeCode, schoolCode) => {
+    return axios.get("http://localhost:9000/api/school-search/majors", {
+      params: { educationOfficeCode, schoolCode },
+    });
+  },
+  // 반 목록 조회 API 호출
+  fetchClasses: (educationOfficeCode, schoolCode, grade, majorName) => {
+    return axios.get("http://localhost:9000/api/school-search/class-info", {
+      params: { educationOfficeCode, schoolCode, grade, majorName },
+    });
+  },
+  // 최종 회원가입 데이터 전송
+  submitSignup: (data) => {
+    return axios.post("http://localhost:9000/api/auth/signup", data);
+  },
+  // 소셜 회원가입 데이터 전송
+  submitSocialSignup: (data) => {
+    return axios.post("http://localhost:9000/api/auth/signup/social", data);
+  },
+};
+
 const SignUpForm = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  // 소셜 가입용 임시 토큰을 저장할 상태
+  const [tempToken, setTempToken] = useState(null);
+
+  // 페이지가 처음 렌더링될 때, URL을 확인해서 임시 토큰이 있는지 검사
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const token = searchParams.get("tempToken");
+    const nickname = searchParams.get("nickname");
+
+    if (token) {
+      console.log("소셜 가입 플로우 시작. 임시 토큰 발견:", token);
+      setTempToken(token);
+      // URL에 닉네임이 있다면, 폼에 미리 채워줌
+      if (nickname) {
+        setFormData((prev) => ({ ...prev, nickname: nickname }));
+      }
+    }
+  }, [location]);
+
   // 폼 단계 관리
   const [step, setStep] = useState(1);
   // 폼 전체 데이터 관리
@@ -61,7 +110,7 @@ const SignUpForm = () => {
     nickname: "",
     gender: "",
     phone: "",
-    birthDay: "", // 필드명 통일 (기존 birthdate -> birthDay)
+    birthDay: "",
     scCode: "",
     schoolCode: "",
     schoolName: "",
@@ -69,8 +118,6 @@ const SignUpForm = () => {
     grade: "",
     classNo: "",
     level: "", // schoolLevel 대신 level 사용
-    // phone number
-    hasPhoneNumber: true, // 전화번호 유무 상태 추가
     // allergy
     allergyId: [],
   });
@@ -79,40 +126,49 @@ const SignUpForm = () => {
   const [validation, setValidation] = useState({
     email: { status: "unchecked", message: "" },
     nickname: { status: "unchecked", message: "" },
+    phone: { status: "unchecked", message: "" },
     passwordMatch: { status: "unchecked", message: "" },
+    name: { status: "unchecked", message: "" }, // 이름 유효성
+    nicknamePattern: { status: "unchecked", message: "" }, // 닉네임 유효성
   });
+
+  // 선택된 학교의 학과 목록
+  const [majorList, setMajorList] = useState([]);
+  // 선택된 학년의 반 목록
+  const [classList, setClassList] = useState([]);
 
   // 학교 검색 모달 표시 여부 관리
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // 버튼 활성화 상태 관리
-  const [isNextDisabled, setIsNextDisabled] = useState(true);
+  const [isStep1NextDisabled, setIsStep1NextDisabled] = useState(true);
+  const [isStep2NextDisabled, setIsStep2NextDisabled] = useState(true);
 
   const allergyData = [
-    { id: 1, name: "알류", icon: allergy1 },
+    { id: 1, name: "난류", icon: allergy1 },
     { id: 2, name: "우유", icon: allergy2 },
-    { id: 3, name: "땅콩", icon: allergy3 },
-    { id: 4, name: "콩", icon: allergy4 },
-    { id: 5, name: "고등어", icon: allergy5 },
-    { id: 6, name: "조개류", icon: allergy6 },
-    { id: 7, name: "닭고기", icon: allergy7 },
-    { id: 8, name: "돼지고기", icon: allergy8 },
-    { id: 9, name: "쇠고기", icon: allergy9 },
-    { id: 10, name: "복숭아", icon: allergy10 },
-    { id: 11, name: "새우", icon: allergy11 },
+    { id: 3, name: "메밀", icon: allergy3 },
+    { id: 4, name: "땅콩", icon: allergy4 },
+    { id: 5, name: "대두", icon: allergy5 },
+    { id: 6, name: "밀", icon: allergy6 },
+    { id: 7, name: "고등어", icon: allergy7 },
+    { id: 8, name: "게", icon: allergy8 },
+    { id: 9, name: "새우", icon: allergy9 },
+    { id: 10, name: "돼지고기", icon: allergy10 },
+    { id: 11, name: "복숭아", icon: allergy11 },
     { id: 12, name: "토마토", icon: allergy12 },
-    { id: 13, name: "호두", icon: allergy13 },
-    { id: 14, name: "오징어", icon: allergy14 },
-    { id: 15, name: "게", icon: allergy15 },
-    { id: 16, name: "아몬드", icon: allergy16 },
-    { id: 17, name: "키위", icon: allergy17 },
-    { id: 18, name: "사과", icon: allergy18 },
-    { id: 19, name: "간장", icon: allergy19 },
-    { id: 20, name: "참깨", icon: allergy20 },
+    { id: 13, name: "아황산류", icon: allergy13 },
+    { id: 14, name: "호두", icon: allergy14 },
+    { id: 15, name: "닭고기", icon: allergy15 },
+    { id: 16, name: "쇠고기", icon: allergy16 },
+    { id: 17, name: "오징어", icon: allergy17 },
+    { id: 18, name: "조개류", icon: allergy18 },
+    { id: 19, name: "잣", icon: allergy19 },
   ];
 
-  // useEffect: '다음' 버튼 활성화 여부를 실시간으로 검사
+  // --- useEffect: 각 단계별 유효성 검사 ---
   useEffect(() => {
+    // 1단계 유효성 검사
     const {
       email,
       password,
@@ -121,16 +177,10 @@ const SignUpForm = () => {
       nickname,
       birthDay,
       gender,
-      level, // schoolLevel 대신 level 사용
-      schoolName,
-      grade,
-      classNo,
-      hasPhoneNumber,
       phone,
     } = formData;
-
-    // 1. 필수 필드 체크 (phone은 hasPhoneNumber에 따라 조건부)
-    let requiredFieldsFilled =
+    // 필수 필드 채워짐 여부
+    const requiredFieldsFilled =
       email &&
       password &&
       confirmPassword &&
@@ -138,25 +188,18 @@ const SignUpForm = () => {
       nickname &&
       birthDay &&
       gender &&
-      level &&
-      schoolName &&
-      grade &&
-      classNo;
-
-    if (hasPhoneNumber) {
-      requiredFieldsFilled = requiredFieldsFilled && phone;
-    }
-
-    // 2. 유효성/중복 검사 통과 여부
+      phone;
+    // 유효성/중복 검사 통과 여부
     const checksPassed =
       validation.email.status === "valid" &&
-      validation.nickname.status === "valid";
-
-    // 3. 비밀번호 일치 여부
-    const passwordMatch = password && password === confirmPassword;
-
-    // 비밀번호 일치 메시지 업데이트
+      validation.nickname.status === "valid" &&
+      validation.phone.status === "valid" &&
+      validation.name.status !== "invalid" && // 이름 유효성 검사 추가
+      validation.nicknamePattern.status !== "invalid"; // 닉네임 유효성 검사 추가
+    // 비밀번호 일치 여부
+    let passwordMatch = false;
     if (password && confirmPassword) {
+      passwordMatch = password === confirmPassword;
       setValidation((prev) => ({
         ...prev,
         passwordMatch: {
@@ -171,52 +214,51 @@ const SignUpForm = () => {
       }));
     }
 
-    setIsNextDisabled(!(requiredFieldsFilled && checksPassed && passwordMatch));
-  }, [formData, validation.email.status, validation.nickname.status]); // 의존성 배열 최적화
+    setIsStep1NextDisabled(
+      !(requiredFieldsFilled && checksPassed && passwordMatch),
+    );
+  }, [formData, validation]); // 의존성 배열에 validation 추가
 
-  // 이벤트 핸들러 함수들
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  useEffect(() => {
+    // 2단계 유효성 검사
+    const { level, schoolName, grade, classNo, majorName } = formData;
+    const majorCheckPassed = majorList.length > 0 ? !!majorName : true;
+    const requiredFieldsFilled =
+      level && schoolName && grade && classNo && majorCheckPassed;
+    setIsStep2NextDisabled(!requiredFieldsFilled);
+  }, [formData]);
 
-    // 중복검사 상태 초기화
-    if (name === "email" || name === "nickname") {
-      setValidation((prev) => ({
-        ...prev,
-        [name]: { status: "unchecked", message: "" },
-      }));
+  // --- 전화번호 포맷팅 헬퍼 함수 ---
+  const formatPhoneNumber = (phoneNumber) => {
+    if (!phoneNumber) return "";
+    const cleaned = ("" + phoneNumber).replace(/\D/g, ""); // 숫자만 남김
+    const match = cleaned.match(/^(\d{3})(\d{4})(\d{4})$/);
+    if (match) {
+      return `${match[1]}-${match[2]}-${match[3]}`;
     }
+    return cleaned; // 포맷에 맞지 않으면 숫자만 반환
   };
 
-  const handleGenderChange = (gender) => {
-    setFormData({ ...formData, gender });
-  };
-
-  const handleSchoolLevelChange = (e) => {
-    // level 변경 시 학교 정보 초기화
-    setFormData({
-      ...formData,
-      level: e.target.value,
-      schoolName: "",
-      scCode: "",
-      schoolCode: "",
-    });
-  };
-
-  const handleAllergySelect = (id) => {
-    setFormData((prev) => {
-      const newAllergies = prev.allergyId.includes(id)
-        ? prev.allergyId.filter((allergy) => allergy !== id)
-        : [...prev.allergyId, id];
-      return { ...prev, allergyId: newAllergies };
-    });
-  };
-
+  // --- 이벤트 핸들러: 비동기 로직 ---
   const handleDuplicateCheck = async (type) => {
-    const value = formData[type];
+    let value = formData[type];
+    const typeKorean = {
+      email: "이메일을",
+      nickname: "닉네임을",
+      phone: "전화번호를",
+    };
+
     if (!value.trim()) {
-      alert(`${type === "email" ? "이메일을" : "닉네임을"} 입력해주세요.`);
+      alert(`${typeKorean[type]} 입력해주세요.`);
       return;
+    }
+
+    if (type === "email") {
+      const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/;
+      if (!emailRegex.test(value)) {
+        alert("올바른 이메일 형식을 입력해주세요.");
+        return; // 형식이 틀리면 여기서 함수 종료
+      }
     }
 
     try {
@@ -224,18 +266,13 @@ const SignUpForm = () => {
         ...prev,
         [type]: { status: "checking", message: "확인 중..." },
       }));
-
-      // api 인스턴스 사용
-      const response = await api.get(`/auth/check-${type}`, {
-        params: { [type]: value },
-      });
-
+      const response = await apiService.checkDuplicate(type, value);
       if (response.data) {
         setValidation((prev) => ({
           ...prev,
           [type]: {
             status: "invalid",
-            message: `이미 사용 중인 ${type}입니다.`,
+            message: `이미 사용 중인 ${typeKorean[type].slice(0, -1)}입니다.`,
           },
         }));
       } else {
@@ -243,100 +280,336 @@ const SignUpForm = () => {
           ...prev,
           [type]: { status: "valid", message: "사용 가능합니다!" },
         }));
+        // 전화번호인 경우, 성공하면 포맷팅하여 다시 저장
+        if (type === "phone") {
+          setFormData((prev) => ({ ...prev, phone: formatPhoneNumber(value) }));
+        }
       }
     } catch (error) {
-      console.error(`${type} 중복 확인 실패:`, error);
       setValidation((prev) => ({
         ...prev,
-        [type]: { status: "error", message: "확인 중 오류가 발생했습니다." },
+        [type]: { status: "error", message: "확인 중 오류 발생" },
       }));
+      console.error(`${type} 중복 확인 실패:`, error);
     }
   };
-
-  const handlePhoneNumberToggle = (hasPhoneNumber) => {
-    // phone 필드명 통일 (phoneNumber -> phone)
-    setFormData({ ...formData, hasPhoneNumber, phone: "" });
-  };
-
-  const handleSchoolSelect = (school) => {
+  const handleSchoolSelect = async (school) => {
     setFormData((prev) => ({
       ...prev,
       schoolName: school.SCHUL_NM,
       scCode: school.ATPT_OFCDC_SC_CODE,
       schoolCode: school.SD_SCHUL_CODE,
-      majorName: "", // 학교 변경 시 전공/학과 초기화
+      majorName: "",
+      grade: "",
+      classNo: "",
     }));
-    setIsModalOpen(false); // 선택 후 모달 닫기
+    setMajorList([]);
+    setClassList([]);
+    try {
+      const response = await apiService.fetchMajors(
+        school.ATPT_OFCDC_SC_CODE,
+        school.SD_SCHUL_CODE,
+      );
+      setMajorList(response.data);
+    } catch (error) {
+      setMajorList([]);
+    }
   };
 
-  const handleNextClick = (e) => {
-    e.preventDefault();
-    setStep(2);
+  const handleGradeChange = async (e) => {
+    const newGrade = e.target.value;
+    setFormData((prev) => ({ ...prev, grade: newGrade, classNo: "" }));
+    setClassList([]);
+    if (newGrade && formData.scCode && formData.schoolCode) {
+      try {
+        // 백엔드 API를 호출할 때 사용자가 선택한 학과명을 함께 전달!
+        const response = await apiService.fetchClasses(
+          formData.scCode,
+          formData.schoolCode,
+          newGrade,
+          formData.majorName, // 👈 여기가 중요!
+        );
+
+        // 서버에서 이미 필터링된 결과를 그대로 state에 저장
+        setClassList(response.data);
+      } catch (error) {
+        console.error("반 정보 조회 실패:", error);
+        setClassList([]);
+      }
+    }
   };
 
-  // '가입하기' 버튼 클릭 시 실행될 함수
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const signupData = {
-      student: {
-        email: formData.email,
-        password: formData.password,
-        name: formData.name,
-      },
-      profile: {
-        nickname: formData.nickname,
-        gender: formData.gender === "남자" ? "MALE" : "FEMALE",
-        phone: formData.phone || null, // 전화번호 없으면 null 전달
-        birthDay: formData.birthDay,
-        scCode: formData.scCode,
-        schoolCode: formData.schoolCode,
-        schoolName: formData.schoolName,
-        majorName: formData.majorName,
-        grade: parseInt(formData.grade),
-        classNo: parseInt(formData.classNo),
-        level: formData.level,
-      },
-      allergyId: formData.allergyId,
-    };
+    if (tempToken) {
+      // --- 소셜 회원가입 완료 로직 ---
+      const socialSignupData = {
+        tempToken: tempToken,
+        profile: {
+          nickname: formData.nickname,
+          gender: formData.gender === "남자" ? "MALE" : "FEMALE",
+          phone: formData.phone,
+          birthDay: formData.birthDay,
+          scCode: formData.scCode,
+          schoolCode: formData.schoolCode,
+          schoolName: formData.schoolName,
+          majorName: formData.majorName || "일반학과",
+          grade: parseInt(formData.grade),
+          classNo: parseInt(formData.classNo),
+          level: formData.level,
+        },
+        student: {
+          // 백엔드가 최소한의 정보를 요구하므로 보내줍니다.
+          name: formData.name,
+          password: "social_user_temp_password", // 소셜 유저는 임시 비밀번호
+        },
+        allergyId: formData.allergyId,
+      };
 
-    // 유효성 재검사
-    if (isNextDisabled) {
-      alert("필수 항목을 모두 입력하거나 중복 확인을 완료해 주세요.");
-      return;
-    }
+      try {
+        // 소셜 손님용 문으로 요청을 보내도록 수정합니다.
+        const response = await axios.post(
+          "http://localhost:9000/api/auth/signup/social",
+          socialSignupData,
+        );
+        alert("회원가입이 성공적으로 완료되었습니다!");
 
-    try {
-      // api 인스턴스 사용
-      const response = await api.post("/auth/signup", signupData);
-
-      alert("회원가입에 성공했습니다!");
-
-      // 백엔드 응답에서 토큰을 'Authorization' 헤더 대신 본문에서 받을 경우
-      const token = response.data.token;
-      if (token) {
-        localStorage.setItem("authToken", token);
-        // 향후 인증이 필요한 요청에 토큰 자동 포함
-        // api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+        const finalToken = response.data.token;
+        if (finalToken) {
+          localStorage.setItem("authToken", finalToken);
+          navigate("/mainpage", { replace: true });
+        } else {
+          alert("로그인에 실패했습니다. 다시 시도해주세요.");
+          navigate("/", { replace: true });
+        }
+      } catch (error) {
+        console.error("소셜 회원가입 완료 실패:", error);
+        alert(
+          `가입 중 오류가 발생했습니다: ${error.response?.data?.message || "서버 오류"}`,
+        );
       }
+    } else {
+      // --- 일반 회원가입 로직 (기존 코드와 완벽하게 동일) ---
+      const signupData = {
+        student: {
+          email: formData.email,
+          password: formData.password,
+          name: formData.name,
+        },
+        profile: {
+          nickname: formData.nickname,
+          gender: formData.gender === "남자" ? "MALE" : "FEMALE",
+          phone: formData.phone,
+          birthDay: formData.birthDay,
+          scCode: formData.scCode,
+          schoolCode: formData.schoolCode,
+          schoolName: formData.schoolName,
+          majorName: formData.majorName,
+          grade: parseInt(formData.grade),
+          classNo: parseInt(formData.classNo),
+          level: formData.level,
+        },
+        allergyId: formData.allergyId,
+      };
 
-      navigate("/mainpage");
-    } catch (error) {
-      console.error("회원가입 실패:", error.response?.data || error.message);
+      try {
+        // apiService를 사용하셨으니, 그대로 사용합니다.
+        await apiService.submitSignup(signupData);
+        alert("회원가입에 성공했습니다! 자동으로 로그인합니다.");
 
-      // 서버 에러 메시지 추출 개선
-      let serverMessage = "서버 오류가 발생했습니다.";
-      if (error.response && error.response.data) {
-        // 백엔드에서 JSON { message: "..." } 형태로 에러를 보냈을 경우
-        serverMessage = error.response.data.message || error.response.data;
-      } else if (error.request) {
-        serverMessage =
-          "서버에 연결할 수 없습니다. 네트워크 상태를 확인하세요.";
+        const loginRes = await api.post("/auth/login", {
+          email: formData.email,
+          password: formData.password,
+        });
+
+        const token = loginRes.headers.authorization?.split(" ")[1];
+
+        if (token) {
+          localStorage.setItem("authToken", token);
+          navigate("/mainpage", { replace: true });
+        } else {
+          alert("자동 로그인에 실패했습니다. 로그인 페이지로 이동합니다.");
+          navigate("/", { replace: true });
+        }
+      } catch (error) {
+        console.error("일반 회원가입/자동 로그인 중 오류:", error);
+        alert(
+          `회원가입 중 오류: ${error.response?.data?.message || "서버 오류"}`,
+        );
       }
-
-      alert(`회원가입 중 오류가 발생했습니다: ${serverMessage}`);
     }
   };
+
+  // --- 이벤트 핸들러: 동기 로직 ---
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => {
+      const newState = { ...prev, [name]: value };
+
+      // 학과 변경 시 초기화 로직
+      if (name === "majorName") {
+        newState.grade = "";
+        newState.classNo = "";
+        setClassList([]);
+      }
+      // ------------------------------------
+
+      return newState;
+    });
+
+    // 중복 검사 상태 초기화
+    if (["email", "nickname", "phone"].includes(name)) {
+      setValidation((prev) => ({
+        ...prev,
+        [name]: { status: "unchecked", message: "" },
+      }));
+    }
+
+    // 이름 유효성 검사 (실시간)
+    if (name === "name") {
+      if (value.length > 10) {
+        setValidation((prev) => ({
+          ...prev,
+          name: {
+            status: "invalid",
+            message: "이름은 10글자를 초과할 수 없습니다.",
+          },
+        }));
+      } else if (/[^가-힣a-zA-Z\s]/.test(value)) {
+        // 한글, 영문, 공백 제외 특수문자/숫자
+        setValidation((prev) => ({
+          ...prev,
+          name: {
+            status: "invalid",
+            message: "이름에는 숫자나 특수문자를 사용할 수 없습니다.",
+          },
+        }));
+      } else {
+        setValidation((prev) => ({
+          ...prev,
+          name: { status: "unchecked", message: "" },
+        }));
+      }
+    }
+
+    // 닉네임 유효성 검사 (실시간)
+    if (name === "nickname") {
+      if (value.length > 10) {
+        setValidation((prev) => ({
+          ...prev,
+          nicknamePattern: {
+            status: "invalid",
+            message: "닉네임은 10글자를 초과할 수 없습니다.",
+          },
+        }));
+      } else if (/[^가-힣a-zA-Z0-9\s]/.test(value)) {
+        // 한글, 영문, 숫자, 공백 제외 특수문자
+        setValidation((prev) => ({
+          ...prev,
+          nicknamePattern: {
+            status: "invalid",
+            message: "닉네임에는 특수문자를 사용할 수 없습니다.",
+          },
+        }));
+      } else {
+        setValidation((prev) => ({
+          ...prev,
+          nicknamePattern: { status: "unchecked", message: "" },
+        }));
+      }
+    }
+
+    // 비밀번호 확인 실시간 업데이트 (여기서 바로 validation.passwordMatch를 업데이트할 필요는 없음)
+    // useEffect에서 formData.password, formData.confirmPassword 의존성으로 처리됨
+  };
+
+  const handleNextStep = (e) => {
+    e.preventDefault();
+    const requiredFieldsMap = {
+      1: {
+        email: "이메일",
+        password: "비밀번호",
+        confirmPassword: "비밀번호 확인",
+        name: "이름",
+        nickname: "닉네임",
+        birthDay: "생년월일",
+        gender: "성별",
+        phone: "전화번호",
+      },
+      2: {
+        level: "교육 수준",
+        schoolName: "학교",
+        grade: "학년",
+        classNo: "반",
+        ...(majorList.length > 0 && { majorName: "학과" }),
+      },
+    };
+    const fieldsToCheck = requiredFieldsMap[step];
+    for (const field in fieldsToCheck) {
+      if (!formData[field]) {
+        alert(`'${fieldsToCheck[field]}' 항목을 모두 입력해야 합니다.`);
+        return;
+      }
+    }
+
+    // 1단계에서 다음 버튼을 누를 때 추가적인 유효성 검사
+    if (step === 1) {
+      if (validation.email.status !== "valid") {
+        alert("이메일 중복 확인을 완료하거나 유효한 이메일을 입력하세요.");
+        return;
+      }
+      if (validation.nickname.status !== "valid") {
+        alert("닉네임 중복 확인을 완료하거나 유효한 닉네임을 입력하세요.");
+        return;
+      }
+      if (validation.phone.status !== "valid") {
+        alert("전화번호 중복 확인을 완료하거나 유효한 전화번호를 입력하세요.");
+        return;
+      }
+      if (validation.name.status === "invalid") {
+        alert(validation.name.message);
+        return;
+      }
+      if (validation.nicknamePattern.status === "invalid") {
+        alert(validation.nicknamePattern.message);
+        return;
+      }
+      if (validation.passwordMatch.status !== "valid") {
+        alert(validation.passwordMatch.message);
+        return;
+      }
+    }
+
+    setStep((prev) => prev + 1);
+  };
+
+  const gradeOptions = useMemo(() => {
+    if (!formData.level) return [];
+    const maxGrade = formData.level === "초등학교" ? 6 : 3;
+    return Array.from({ length: maxGrade }, (_, i) => i + 1);
+  }, [formData.level]);
+
+  const handleGenderChange = (gender) =>
+    setFormData((prev) => ({ ...prev, gender }));
+  const handleAllergySelect = (id) =>
+    setFormData((prev) => ({
+      ...prev,
+      allergyId: prev.allergyId.includes(id)
+        ? prev.allergyId.filter((a) => a !== id)
+        : [...prev.allergyId, id],
+    }));
+  const handleSchoolLevelChange = (e) =>
+    setFormData((prev) => ({
+      ...prev,
+      level: e.target.value,
+      schoolName: "",
+      scCode: "",
+      schoolCode: "",
+      majorName: "",
+      grade: "",
+      classNo: "",
+    }));
 
   return (
     <SignUpContainer>
@@ -346,15 +619,18 @@ const SignUpForm = () => {
         onSelect={handleSchoolSelect}
         schoolLevel={formData.level}
       />
+
       <FormBox>
         <Title>회원가입</Title>
         <Subtitle>자세한 학교 정보를 알고 싶다면 입력해주세요!</Subtitle>
 
-        {/* STEP 1: 필수 항목 */}
-        {step === 1 && <RequiredSection>필수 항목</RequiredSection>}
-        <RequiredForm onSubmit={handleNextClick} $visible={step === 1}>
-          <div className="input-wrap">
-            {/* 이메일 */}
+        {/* ====================================================== */}
+        {/* STEP 1: 필수 정보 입력 */}
+        {/* ====================================================== */}
+        <RequiredForm onSubmit={handleNextStep} $visible={step === 1}>
+          <RequiredSection>필수 정보 입력</RequiredSection>
+
+          <InputGroup>
             <InputWrapper>
               <Icon>
                 <MdOutlineEmail />
@@ -376,8 +652,9 @@ const SignUpForm = () => {
             <ValidationMessage status={validation.email.status}>
               {validation.email.message}
             </ValidationMessage>
-
-            {/* 비밀번호 */}
+          </InputGroup>
+          {/* 비밀번호 */}
+          <InputGroup>
             <InputWrapper>
               <Icon>
                 <MdLockOutline />
@@ -390,8 +667,9 @@ const SignUpForm = () => {
                 onChange={handleChange}
               />
             </InputWrapper>
-
-            {/* 비밀번호 확인 */}
+          </InputGroup>
+          {/* 비밀번호 확인 */}
+          <InputGroup>
             <InputWrapper>
               <Icon>
                 <MdLockOutline />
@@ -407,64 +685,77 @@ const SignUpForm = () => {
             <ValidationMessage status={validation.passwordMatch.status}>
               {validation.passwordMatch.message}
             </ValidationMessage>
-          </div>
-          <div className="input-wrap">
-            <div className="name">
-              {/* 이름 */}
-              <InputWrapper className="name-wrap">
-                <Icon>
-                  <FaRegUser />
-                </Icon>
-                <Input
-                  type="text"
-                  name="name"
-                  placeholder="이름"
-                  value={formData.name}
-                  onChange={handleChange}
-                />
-              </InputWrapper>
-              {/* 닉네임 */}
-              <InputWrapper className="name-wrap">
-                <Icon>
-                  <FaRegUser />
-                </Icon>
-                <Input
-                  type="text"
-                  name="nickname"
-                  placeholder="닉네임"
-                  value={formData.nickname}
-                  onChange={handleChange}
-                />
-                <CheckButton
-                  type="button"
-                  onClick={() => handleDuplicateCheck("nickname")}
-                >
-                  중복확인
-                </CheckButton>
-              </InputWrapper>
-            </div>
-            <ValidationMessage
-              status={validation.nickname.status}
-              style={{ textAlign: "right", paddingRight: "10px" }}
-            >
-              {validation.nickname.message}
-            </ValidationMessage>
+          </InputGroup>
 
-            {/* 생년월일 */}
+          {/* 이름 */}
+          <InputGroup>
+            <InputWrapper>
+              <Icon>
+                <FaRegUser />
+              </Icon>
+              <Input
+                type="text"
+                name="name"
+                placeholder="이름 (10글자 이내, 숫자/특수문자 제외)"
+                value={formData.name}
+                onChange={handleChange}
+              />
+            </InputWrapper>
+            <ValidationMessage status={validation.name.status}>
+              {validation.name.message}
+            </ValidationMessage>
+          </InputGroup>
+
+          {/* 닉네임*/}
+          <InputGroup>
+            <InputWrapper>
+              <Icon>
+                <FaRegUser />
+              </Icon>
+              <Input
+                type="text"
+                name="nickname"
+                placeholder="닉네임 (10글자 이내, 특수문자 제외)"
+                value={formData.nickname}
+                onChange={handleChange}
+              />
+              <CheckButton
+                type="button"
+                onClick={() => handleDuplicateCheck("nickname")}
+              >
+                중복확인
+              </CheckButton>
+            </InputWrapper>
+            <ValidationMessage
+              status={
+                validation.nickname.status !== "invalid" &&
+                validation.nicknamePattern.status === "invalid"
+                  ? "invalid"
+                  : validation.nickname.status
+              }
+            >
+              {validation.nickname.status === "valid"
+                ? validation.nickname.message
+                : validation.nicknamePattern.message ||
+                  validation.nickname.message}
+            </ValidationMessage>
+          </InputGroup>
+          {/* 생년월일 */}
+          <InputGroup>
             <InputWrapper>
               <Icon>
                 <MdOutlinePermContactCalendar />
               </Icon>
               <Input
                 type="date"
-                name="birthDay" // ⭐️ birthDay로 수정
-                placeholder="생년월일"
+                name="birthDay"
                 value={formData.birthDay}
                 onChange={handleChange}
               />
             </InputWrapper>
-
-            {/* 성별 */}
+          </InputGroup>
+          {/* 생년월일 */}
+          <InputGroup>
             <GenderButtonWrapper>
               <GenderButton
                 type="button"
@@ -481,114 +772,151 @@ const SignUpForm = () => {
                 여자
               </GenderButton>
             </GenderButtonWrapper>
+          </InputGroup>
 
-            {/* 휴대전화번호 */}
-            <PhoneInputWrapper>
-              <PhoneInputBox>
-                <Icon>
-                  <MdOutlinePhone />
-                </Icon>
-                <Input
-                  type="tel"
-                  name="phone" // ⭐️ phone으로 수정
-                  placeholder="휴대전화번호"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  disabled={!formData.hasPhoneNumber}
-                />
-              </PhoneInputBox>
-              <NoPhoneRadio
-                onClick={() =>
-                  handlePhoneNumberToggle(!formData.hasPhoneNumber)
-                }
+          {/* 전화번호*/}
+          <InputGroup>
+            <InputWrapper>
+              <Icon>
+                <MdOutlinePhone />
+              </Icon>
+              <Input
+                type="tel"
+                name="phone"
+                placeholder="휴대전화번호"
+                value={formData.phone}
+                onChange={handleChange}
+              />
+              <CheckButton
+                type="button"
+                onClick={() => handleDuplicateCheck("phone")}
               >
-                <input
-                  type="radio"
-                  checked={!formData.hasPhoneNumber}
-                  onChange={() => {}}
-                />
-                <label>없음</label>
-              </NoPhoneRadio>
-            </PhoneInputWrapper>
-          </div>
+                중복확인
+              </CheckButton>
+            </InputWrapper>
+            <ValidationMessage status={validation.phone.status}>
+              {validation.phone.message}
+            </ValidationMessage>
+          </InputGroup>
 
-          {/* 학교급 */}
-          <SchoolLevelWrapper>
-            <SchoolLevelRadioGroup>
-              {["초등학교", "중학교", "고등학교"].map((level) => (
-                <RadioLabel key={level}>
-                  <RadioInput
-                    type="radio"
-                    name="level"
-                    value={level}
-                    checked={formData.level === level}
-                    onChange={handleSchoolLevelChange}
-                  />
-                  {level}
-                </RadioLabel>
-              ))}
-            </SchoolLevelRadioGroup>
-          </SchoolLevelWrapper>
-
-          {/* 학교 검색 */}
-          <InputWrapper>
-            <Icon>
-              <MdOutlineSchool />
-            </Icon>
-            <Input
-              type="text"
-              name="schoolName"
-              placeholder="학교를 검색해주세요"
-              value={formData.schoolName}
-              readOnly
-            />
-            <CheckButton
-              type="button"
-              onClick={() => setIsModalOpen(true)}
-              disabled={!formData.level}
-            >
-              <SearchIcon>
-                <MdSearch />
-              </SearchIcon>{" "}
-              검색
-            </CheckButton>
-          </InputWrapper>
-
-          {/* 학년/반 */}
-          <GradeClassWrapper>
-            <GradeClassInputBox>
-              <Input
-                type="number"
-                name="grade"
-                placeholder="학년"
-                value={formData.grade}
-                onChange={handleChange}
-                min="1"
-              />
-            </GradeClassInputBox>
-            <GradeClassInputBox>
-              <Input
-                type="number"
-                name="classNo"
-                placeholder="반"
-                value={formData.classNo}
-                onChange={handleChange}
-                min="1"
-              />
-            </GradeClassInputBox>
-          </GradeClassWrapper>
-
-          <NextButton type="submit" disabled={isNextDisabled}>
+          <NextButton type="submit" disabled={isStep1NextDisabled}>
             다음
           </NextButton>
         </RequiredForm>
 
-        {/* ------------------- STEP 2: 선택 항목 (알레르기) ------------------- */}
-        {step === 2 && <RequiredSection>선택 항목</RequiredSection>}
-        <OptionalSection $visible={step === 2}>
-          <OptionalSubtitle>알레르기</OptionalSubtitle>
+        {/* ====================================================== */}
+        {/* STEP 2: 학교 정보 입력 */}
+        {/* ====================================================== */}
+        <RequiredForm onSubmit={handleNextStep} $visible={step === 2}>
+          <RequiredSection>학교 정보 입력</RequiredSection>
+
+          <InputGroup>
+            <SchoolLevelWrapper>
+              <SchoolLevelRadioGroup>
+                {["초등학교", "중학교", "고등학교"].map((level) => (
+                  <RadioLabel key={level}>
+                    <RadioInput
+                      type="radio"
+                      name="level"
+                      value={level}
+                      checked={formData.level === level}
+                      onChange={handleSchoolLevelChange}
+                    />
+                    {level}
+                  </RadioLabel>
+                ))}
+              </SchoolLevelRadioGroup>
+            </SchoolLevelWrapper>
+          </InputGroup>
+
+          <InputGroup>
+            <InputWrapper>
+              <Icon>
+                <MdOutlineSchool />
+              </Icon>
+              <Input
+                type="text"
+                name="schoolName"
+                placeholder="학교를 검색해주세요"
+                value={formData.schoolName}
+                readOnly
+              />
+              <CheckButton
+                type="button"
+                onClick={() => setIsModalOpen(true)}
+                disabled={!formData.level}
+              >
+                <MdSearch /> 검색
+              </CheckButton>
+            </InputWrapper>
+          </InputGroup>
+
+          {majorList.length > 0 && (
+            <InputGroup>
+              <InputWrapper>
+                <Icon>
+                  <MdOutlineSchool />
+                </Icon>
+                <Select
+                  name="majorName"
+                  value={formData.majorName}
+                  onChange={handleChange}
+                >
+                  <option value="">학과를 선택하세요</option>
+                  {majorList.map((major) => (
+                    <option key={major.DDDEP_NM} value={major.DDDEP_NM}>
+                      {major.DDDEP_NM}
+                    </option>
+                  ))}
+                </Select>
+              </InputWrapper>
+            </InputGroup>
+          )}
+
+          <InputGroup>
+            <GradeClassWrapper>
+              <SelectWrapper>
+                <Select
+                  name="grade"
+                  value={formData.grade}
+                  onChange={handleGradeChange}
+                >
+                  <option value="">학년 선택</option>
+                  {gradeOptions.map((g) => (
+                    <option key={g} value={g}>
+                      {g}학년
+                    </option>
+                  ))}
+                </Select>
+              </SelectWrapper>
+              <SelectWrapper>
+                <Select
+                  name="classNo"
+                  value={formData.classNo}
+                  onChange={handleChange}
+                  disabled={classList.length === 0}
+                >
+                  <option value="">반 선택</option>
+                  {classList.map((c) => (
+                    <option key={c.CLASS_NM} value={c.CLASS_NM}>
+                      {c.CLASS_NM}반
+                    </option>
+                  ))}
+                </Select>
+              </SelectWrapper>
+            </GradeClassWrapper>
+          </InputGroup>
+          <NextButton type="submit" disabled={isStep2NextDisabled}>
+            다음
+          </NextButton>
+        </RequiredForm>
+
+        {/* ====================================================== */}
+        {/* STEP 3: 알레르기 선택 */}
+        {/* ====================================================== */}
+        <OptionalSection onSubmit={handleSubmit} $visible={step === 3}>
+          <RequiredSection>3단계: 알레르기 선택 (선택)</RequiredSection>
           <AllergyGrid>
-            {/* 알레르기 아이템 맵핑: id 사용 */}
             {allergyData.map((item) => (
               <AllergyItem
                 key={item.id}
@@ -600,9 +928,7 @@ const SignUpForm = () => {
               </AllergyItem>
             ))}
           </AllergyGrid>
-          <CompleteButton type="button" onClick={handleSubmit}>
-            회원가입
-          </CompleteButton>
+          <CompleteButton type="submit">회원가입</CompleteButton>
         </OptionalSection>
       </FormBox>
     </SignUpContainer>
@@ -611,14 +937,17 @@ const SignUpForm = () => {
 
 export default SignUpForm;
 
-// 회원가입 페이지 스타일
+// ======================================================
+// == Styled-Components 전체 코드 ==
+// ======================================================
+
 const SignUpContainer = styled.div`
   display: flex;
   flex-direction: column;
   width: 100%;
   max-width: 480px;
   margin: 0 auto;
-  padding: 76px 0;
+  padding: 76px 20px;
   min-height: 100vh;
   background-color: #ffffff;
 `;
@@ -627,15 +956,12 @@ const FormBox = styled.div`
   max-width: 600px;
   width: 100%;
   text-align: center;
-  .input-wrap {
-    margin-bottom: 40px;
-    .name {
-      display: flex;
-      gap: 16px;
-      justify-content: space-between;
-      .name-wrap {
-        width: 50%;
-      }
+  .name {
+    display: flex;
+    gap: 16px;
+    justify-content: space-between;
+    .name-wrap {
+      width: 50%;
     }
   }
 `;
@@ -656,18 +982,23 @@ const RequiredSection = styled.div`
   font-weight: 600;
 `;
 
-// 필수 항목 폼 스타일
 const RequiredForm = styled.form`
   display: ${(props) => (props.$visible ? "block" : "none")};
 `;
-
+const InputGroup = styled.div`
+  margin-bottom: 20px; /* 각 입력 필드 그룹 간의 일관된 간격 */
+  &:last-of-type {
+    margin-bottom: 30px; /* 마지막 그룹에는 마진 제거 */
+  }
+`;
 const InputWrapper = styled.div`
   display: flex;
   align-items: center;
   border: 1px solid #ddd;
   border-radius: 5px;
-  margin-bottom: 12px;
+  /* margin-bottom: 12px; */
   padding: 10px;
+  background-color: #f9f9f9;
 `;
 
 const Icon = styled.span`
@@ -683,7 +1014,22 @@ const Input = styled.input`
   outline: none;
   flex: 1;
   padding: 0 12px;
-  color: var(--text-color);
+  font-size: 1rem;
+  color: #333;
+  background-color: transparent;
+`;
+
+const Select = styled.select`
+  border: none;
+  outline: none;
+  flex: 1;
+  padding: 0 12px;
+  font-size: 1rem;
+  color: var(--text-primary);
+  background-color: transparent;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
 `;
 
 const CheckButton = styled.button`
@@ -716,7 +1062,6 @@ const GenderButton = styled.button`
   font-size: 1rem;
   font-weight: 500;
   transition: all 0.2s;
-
   ${(props) =>
     props.selected &&
     css`
@@ -724,29 +1069,6 @@ const GenderButton = styled.button`
       color: white;
       border-color: var(--primary-color);
     `}
-`;
-
-const PhoneInputWrapper = styled.div`
-  display: flex;
-  align-items: center;
-`;
-const PhoneInputBox = styled(InputWrapper)`
-  flex: 1;
-  margin-bottom: 0;
-`;
-const NoPhoneRadio = styled.div`
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  margin-left: 10px;
-  padding: 8px 0;
-
-  input {
-    margin-right: 6px;
-  }
-  label {
-    white-space: nowrap;
-  }
 `;
 
 const SchoolLevelWrapper = styled.div`
@@ -778,11 +1100,9 @@ const RadioInput = styled.input`
   height: 20px;
   border: 1px solid #ddd;
   border-radius: 50%;
-
   &:checked {
     border-color: var(--primary-color);
   }
-
   &:checked::before {
     content: "";
     display: block;
@@ -799,13 +1119,20 @@ const RadioInput = styled.input`
 
 const GradeClassWrapper = styled.div`
   display: flex;
-  gap: 16px;
+  gap: 8px;
   margin-bottom: 16px;
 `;
 
-const GradeClassInputBox = styled(InputWrapper)`
+// Select를 감싸기 위한 Wrapper 추가
+const SelectWrapper = styled(InputWrapper)`
   flex: 1;
   margin-bottom: 0;
+  padding: 0; /* 내부 Select가 padding을 갖도록 Wrapper는 padding 제거 */
+
+  select {
+    padding: 10px; /* Input과 유사한 내부 padding 적용 */
+    width: 100%;
+  }
 `;
 
 const NextButton = styled.button`
@@ -817,31 +1144,17 @@ const NextButton = styled.button`
   font-weight: bold;
   border-radius: 8px;
   cursor: pointer;
+  transition: background-color 0.2s;
+  &:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+  }
 `;
 
-const SearchIcon = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  color: #ffffff;
-`;
-
-// 선택 항목 폼 (알레르기) 스타일
-const OptionalSection = styled.div`
+// OptionalSection을 form으로 변경
+const OptionalSection = styled.form`
   display: ${(props) => (props.$visible ? "block" : "none")};
   text-align: center;
-`;
-
-const OptionalTitle = styled.h3`
-  font-size: 1.875rem;
-  font-weight: 600;
-  margin-bottom: 8px;
-`;
-
-const OptionalSubtitle = styled.p`
-  margin-bottom: 24px;
 `;
 
 const AllergyGrid = styled.div`
@@ -855,36 +1168,39 @@ const AllergyItem = styled.div`
   flex-direction: column;
   align-items: center;
   cursor: pointer;
+  padding: 5px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  transition: all 0.2s;
 
   img {
     width: 50px;
     height: 50px;
     margin-bottom: 8px;
   }
-
   p {
     font-size: 0.875rem;
     color: #666;
   }
+
+  ${(props) =>
+    props.selected &&
+    css`
+      border-color: var(--primary-color);
+      background-color: #fff5f7;
+    `}
 `;
 
 const CompleteButton = styled(NextButton)`
-  background-color: #f7a1a1;
-  color: #fff;
+  background-color: #f7a1a1; /* 다른 색상 예시 */
   margin-top: 40px;
 `;
 
 const ValidationMessage = styled.p`
   font-size: 0.875rem;
-  margin: -8px 0 12px 12px; /* 위아래, 좌우 여백 조정 */
+  margin: 4px 0 4px 4px;
   text-align: left;
-  height: 1.2em; /* 메시지가 없을 때도 공간을 차지해 레이아웃이 흔들리지 않게 함 */
-
-  /* status prop 값에 따라 글자색 변경 */
+  height: 1.2em;
   color: ${({ status }) =>
-    status === "valid"
-      ? "green" /* 성공 시 초록색 */
-      : status === "invalid"
-        ? "red" /* 실패 시 빨간색 */
-        : "#666"}; /* 기본 회색 */
+    status === "valid" ? "green" : status === "invalid" ? "red" : "#666"};
 `;
