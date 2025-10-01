@@ -31,7 +31,7 @@ api.interceptors.request.use(
   },
 );
 
-// ... useAlert 및 CustomAlert 컴포넌트 (변경 없음) ...
+// useAlert 및 CustomAlert 컴포넌트
 const useAlert = () => {
   const [alert, setAlert] = useState({
     message: null,
@@ -416,7 +416,7 @@ const ProductManagement = () => {
     }
   };
 
-  // 🚨 [핵심 수정] 현재 페이지에 해당하는 상품 목록만 필터링
+  // 현재 페이지에 해당하는 상품 목록만 필터링
   const paginatedProducts = useMemo(() => {
     const startIndex = (currentPage - 1) * PRODUCTS_PER_PAGE;
     const endIndex = startIndex + PRODUCTS_PER_PAGE;
@@ -498,7 +498,7 @@ const ProductManagement = () => {
 
       <MainContentArea>
         <ProductGrid>
-          {/* 🚨 [수정] productItems 대신 paginatedProducts 사용 */}
+          {/* productItems 대신 paginatedProducts 사용 */}
           {paginatedProducts.map((product) => (
             <ProductCard
               key={product.productId}
@@ -536,12 +536,8 @@ const ProductManagement = () => {
                   포인트:{" "}
                   {new Intl.NumberFormat().format(product.productPoints)}P
                 </p>
+                <p>유효기간: {String(product.expirationDate).split("T")[0]}</p>
                 <p>
-                  {/* 🚨 [수정] YYYY-MM-DD 문자열을 그대로 사용하거나 Date() 처리 방식을 보정 */}
-                  유효기간: {String(product.expirationDate).split("T")[0]}
-                </p>
-                <p>
-                  {/* 🚨 [수정] YYYY-MM-DD 문자열을 그대로 사용하거나 Date() 처리 방식을 보정 */}
                   등록일자: {String(product.registrationDate).split("T")[0]}
                 </p>
                 <p>재고: {product.stock}</p>
@@ -701,7 +697,6 @@ const ProductManagement = () => {
 
 export default ProductManagement;
 
-// ... (스타일 컴포넌트 코드는 변경 없음) ...
 const ALERT_COLORS = {
   success: { background: "#4CAF50", color: "#FFFFFF" },
   error: { background: "#ff0000", color: "#FFFFFF" },
