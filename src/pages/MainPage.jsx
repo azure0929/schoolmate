@@ -25,7 +25,7 @@ const Separator = styled.div`
   height: 40px;
 `;
 
-function App() {
+function MainPage() {
   return (
     <AppContainer>
       <ContentWrapper>
@@ -53,4 +53,4 @@ function App() {
   );
 }
 
-export default App;
+export default MainPage;

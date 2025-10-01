@@ -51,7 +51,7 @@ const Login = () => {
           navigate("/admin");
         } else {
           // STUDENT 또는 다른 역할인 경우의 기본 경로
-          navigate("/");
+          navigate("/mainpage");
         }
       } else {
         console.error("로그인 성공했으나 JWT를 찾을 수 없습니다.");
@@ -88,6 +88,13 @@ const Login = () => {
       console.error("로그인 API 호출 에러:", error);
       alert(errorMessage);
     }
+  };
+
+  const handleKakaoLogin = () => {
+    // 페이지 이동 전에 다른 작업을 추가할 수 있습니다.
+    console.log("카카오 로그인 시도...");
+
+    window.location.href = "http://localhost:9000/oauth2/authorization/kakao";
   };
 
   // ... (JSX, 스타일 코드는 변경 없음)
@@ -132,7 +139,11 @@ const Login = () => {
           <StyledButton type="submit" className="login">
             로그인
           </StyledButton>
-          <StyledButton type="button" className="kakao">
+          <StyledButton
+            type="button"
+            className="kakao"
+            onClick={handleKakaoLogin}
+          >
             <KakaoLogoImage src={KakaoLogo} alt="카카오 로고" />
             카카오 로그인
           </StyledButton>
@@ -145,8 +156,6 @@ const Login = () => {
 };
 
 export default Login;
-
-// (스타일 코드는 변경 없음. 길어서 생략합니다.)
 
 const LoginContainer = styled.div`
   height: 100vh;
