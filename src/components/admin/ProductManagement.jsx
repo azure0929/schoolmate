@@ -85,7 +85,8 @@ const categorizeProduct = (productName) => {
     name.includes("카페") ||
     name.includes("라떼") ||
     name.includes("아메리카노") ||
-    name.includes("프라페")
+    name.includes("프라페") ||
+    name.includes("공차")
   )
     return "CO";
   if (
@@ -108,10 +109,17 @@ const categorizeProduct = (productName) => {
     name.includes("영화")
   )
     return "MO";
+  if (
+    name.includes("뚜레쥬르") ||
+    name.includes("파리바게트") ||
+    name.includes("던킨도너츠") ||
+    name.includes("성심당")
+  )
+    return "BR";
   return "ETC";
 };
 
-// 🚨 [상수 정의] 한 페이지당 상품 개수
+// 한 페이지당 상품 개수
 const PRODUCTS_PER_PAGE = 6;
 
 // ProductManagement Component
@@ -121,7 +129,7 @@ const ProductManagement = () => {
 
   // 페이지네이션 상태
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1); // 🚨 [수정] totalPages 계산
+  const [totalPages, setTotalPages] = useState(1); // totalPages 계산
 
   const [activeProductId, setActiveProductId] = useState(null);
 
@@ -843,13 +851,15 @@ const ProductGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 20px;
+  overflow-x: hidden;
+  grid-auto-rows: 248px;
 `;
 
 const ProductCard = styled.div`
   border: 1px solid #e0e0e0;
   display: flex;
   gap: 12px;
-  width: 100%;
+  width: 410px;
   border-radius: 8px;
   padding: 15px;
   text-align: left;
