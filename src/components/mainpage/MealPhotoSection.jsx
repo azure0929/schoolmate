@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import styled, { createGlobalStyle } from "styled-components";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination, Grid } from "swiper/modules";
@@ -20,9 +20,41 @@ function MealPhotoSection() {
   const [studentSchoolName, setStudentSchoolName] =
     useState("학교 정보 불러오는 중...");
 
+  const [mealPhotos, setMealPhotos] = useState([]);
+
   const closeModal = () => setIsModalOpen(false);
 
-  // 모달 열기 전에 학교 정보를 가져오는 함수
+  useEffect(() => {
+    fetchMealPhotos();
+  }, []);
+
+  const fetchMealPhotos = async () => {
+    const authToken = localStorage.getItem("authToken");
+
+    try {
+      const response = await axios.get(
+        `${BASE_API_URL}/v1/photos/allStudentsPhotos`,
+        {
+          headers: {
+            ...(authToken && { Authorization: `Bearer ${authToken}` }),
+          },
+        },
+      );
+
+      if (Array.isArray(response.data)) {
+        setMealPhotos(response.data);
+      } else {
+        console.warn(
+          "API 응답 데이터가 예상된 배열 형식이 아닙니다.",
+          response.data,
+        );
+        setMealPhotos([]);
+      }
+    } catch (error) {
+      console.error("급식 사진 목록 조회 실패:", error);
+    }
+  };
+
   const handleOpenModal = async () => {
     const authToken = localStorage.getItem("authToken");
     if (!authToken) {
@@ -32,32 +64,22 @@ function MealPhotoSection() {
     }
 
     try {
-      // 1. /api/profile/me 엔드포인트에 JWT를 담아 요청
       const response = await axios.get(`${BASE_API_URL}/profile/me`, {
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
       });
 
-      // 2. 응답 DTO(ProfileRes)에서 학교명 추출
       const schoolName = response.data.schoolName || "학교 정보 없음";
       setStudentSchoolName(schoolName);
 
-      setIsModalOpen(true); // 정보 획득 후 모달 열기
+      setIsModalOpen(true);
     } catch (error) {
       console.error("프로필 조회 실패:", error);
       alert("학생 정보를 불러오는데 실패했습니다. 다시 로그인해주세요.");
     }
   };
 
-  const mealPhotos = Array(16)
-    .fill(null)
-    .map((_, i) => ({
-      id: i + 1,
-      src: `https://via.placeholder.com/200?text=Meal+${i + 1}`,
-    }));
-
-  // AI 분석 및 DB 저장 로직
   const handlePhotoUpload = async (file) => {
     const authToken = localStorage.getItem("authToken");
     if (!file || !authToken) {
@@ -77,6 +99,8 @@ function MealPhotoSection() {
         },
       },
     );
+
+    fetchMealPhotos();
 
     return response;
   };
@@ -104,9 +128,12 @@ function MealPhotoSection() {
           className="meal-photo-swiper"
         >
           {mealPhotos.map((photo) => (
-            <SwiperSlide key={photo.id} className="meal-photo-slide">
+            <SwiperSlide key={photo.eatphotoId} className="meal-photo-slide">
               <MealItem>
-                <img src={photo.src} alt={photo.description} />
+                <img src={photo.eatimageUrl} alt="Uploaded meal photo" />
+                <SchoolOverlay>
+                  {photo.schoolName ? photo.schoolName : "학교 정보 없음"}
+                </SchoolOverlay>
               </MealItem>
             </SwiperSlide>
           ))}
@@ -118,7 +145,7 @@ function MealPhotoSection() {
         isOpen={isModalOpen}
         onClose={closeModal}
         onUpload={handlePhotoUpload}
-        studentSchoolName={studentSchoolName} // 학교 정보를 모달로 전달
+        studentSchoolName={studentSchoolName}
       />
     </SectionWrapper>
   );
@@ -199,6 +226,7 @@ const MealItem = styled.div`
   overflow: hidden;
   cursor: pointer;
   transition: transform 0.2s;
+  position: relative;
 
   &:hover {
     transform: scale(1.02);
@@ -209,4 +237,19 @@ const MealItem = styled.div`
     height: 100%;
     object-fit: cover;
   }
+`;
+
+const SchoolOverlay = styled.div`
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: #ffffff;
+  text-align: center;
+  padding: 8px 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `;
