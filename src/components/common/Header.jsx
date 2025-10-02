@@ -1,6 +1,7 @@
 import React from "react";
 import logo from "@/assets/images/logo.png";
 import styled from "styled-components";
+import { useNavigate } from "react-router-dom";
 
 const StyledHeader = styled.div`
   .inner {
@@ -15,11 +16,17 @@ const StyledHeader = styled.div`
 `;
 
 const Header = () => {
+  const navigate = useNavigate();
+
+  const handleOnClick = () => {
+    navigate("/");
+  };
+
   return (
     <div className="wrap">
       <StyledHeader>
         <div className="inner">
-          <div className="logo">
+          <div className="logo" onClick={() => handleOnClick()}>
             <img src={logo} alt="logo" />
           </div>
         </div>

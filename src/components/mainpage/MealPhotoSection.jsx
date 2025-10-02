@@ -3,16 +3,52 @@ import styled, { createGlobalStyle } from "styled-components";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination, Grid } from "swiper/modules";
 import EatPhotoModal from "@/components/modals/EatPhotoModal";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 import "swiper/css";
 import "swiper/css/pagination";
 import "swiper/css/grid";
 
-function MealPhotoSection() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+const BASE_API_URL =
+  import.meta.env.REACT_APP_API_URL || "http://localhost:9000/api";
 
-  const openModal = () => setIsModalOpen(true);
+function MealPhotoSection() {
+  const navigate = useNavigate();
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [studentSchoolName, setStudentSchoolName] =
+    useState("학교 정보 불러오는 중...");
+
   const closeModal = () => setIsModalOpen(false);
+
+  // 모달 열기 전에 학교 정보를 가져오는 함수
+  const handleOpenModal = async () => {
+    const authToken = localStorage.getItem("authToken");
+    if (!authToken) {
+      alert("로그인이 필요합니다.");
+      navigate("/");
+      return;
+    }
+
+    try {
+      // 1. /api/profile/me 엔드포인트에 JWT를 담아 요청
+      const response = await axios.get(`${BASE_API_URL}/profile/me`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+
+      // 2. 응답 DTO(ProfileRes)에서 학교명 추출
+      const schoolName = response.data.schoolName || "학교 정보 없음";
+      setStudentSchoolName(schoolName);
+
+      setIsModalOpen(true); // 정보 획득 후 모달 열기
+    } catch (error) {
+      console.error("프로필 조회 실패:", error);
+      alert("학생 정보를 불러오는데 실패했습니다. 다시 로그인해주세요.");
+    }
+  };
 
   const mealPhotos = Array(16)
     .fill(null)
@@ -21,12 +57,36 @@ function MealPhotoSection() {
       src: `https://via.placeholder.com/200?text=Meal+${i + 1}`,
     }));
 
+  // AI 분석 및 DB 저장 로직
+  const handlePhotoUpload = async (file) => {
+    const authToken = localStorage.getItem("authToken");
+    if (!file || !authToken) {
+      throw new Error("파일과 로그인 정보가 유효하지 않습니다.");
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await axios.post(
+      `${BASE_API_URL}/v1/photos/upload`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${authToken}`,
+        },
+      },
+    );
+
+    return response;
+  };
+
   return (
     <SectionWrapper>
       <SwiperStyles />
       <SectionHeader>
         <SectionTitle>급식 사진 (다른 학교 급식도 보자!)</SectionTitle>
-        <MoreButton onClick={openModal}>급식 사진 업로드</MoreButton>
+        <MoreButton onClick={handleOpenModal}>급식 사진 업로드</MoreButton>
       </SectionHeader>
       <PhotoSwiperContainer>
         <Swiper
@@ -54,7 +114,12 @@ function MealPhotoSection() {
         <div className="meal-photo-pagination" />
       </PhotoSwiperContainer>
 
-      <EatPhotoModal isOpen={isModalOpen} onClose={closeModal} />
+      <EatPhotoModal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        onUpload={handlePhotoUpload}
+        studentSchoolName={studentSchoolName} // 학교 정보를 모달로 전달
+      />
     </SectionWrapper>
   );
 }
