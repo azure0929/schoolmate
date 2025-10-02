@@ -1,48 +1,90 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import styled, { createGlobalStyle } from "styled-components";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/pagination";
+import axios from "axios";
+
+const BASE_API_URL =
+  import.meta.env.REACT_APP_API_URL || "http://localhost:9000/api";
+
+const api = axios.create({
+  baseURL: BASE_API_URL,
+});
+
+api.interceptors.request.use(
+  (config) => {
+    // 필요하다면 토큰을 여기에 추가
+    const token = localStorage.getItem("authToken");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  },
+);
 
 function ProductSection() {
-  const products = [
-    {
-      name: "스타벅스 아메리카노",
-      src: "https://via.placeholder.com/284x284?text=Prod+1",
-    },
-    {
-      name: "스타벅스 라떼",
-      src: "https://via.placeholder.com/284x284?text=Prod+2",
-    },
-    {
-      name: "투썸 초콜릿 케이크",
-      src: "https://via.placeholder.com/284x284?text=Prod+3",
-    },
-    {
-      name: "BHC 뿌링클 (콜라 포함)",
-      src: "https://via.placeholder.com/284x284?text=Prod+4",
-    },
-    {
-      name: "CU 모바일 상품권",
-      src: "https://via.placeholder.com/284x284?text=Prod+5",
-    },
-    {
-      name: "BBQ 황금올리브",
-      src: "https://via.placeholder.com/284x284?text=Prod+6",
-    },
-    {
-      name: "나이키 운동화",
-      src: "https://via.placeholder.com/284x284?text=Prod+7",
-    },
-    {
-      name: "CU 삼각김밥",
-      src: "https://via.placeholder.com/284x284?text=Prod+8",
-    },
-  ];
+  // 상품 목록 상태
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // 상품 목록 로딩 함수
+  const fetchProducts = async () => {
+    setLoading(true);
+    try {
+      // API 경로: 관리자 페이지와 동일한 GET /products 사용 가정
+      const response = await api.get("/products");
+      setProducts(response.data);
+      setError(null);
+    } catch (err) {
+      console.error("상품 목록 로딩 실패:", err);
+      setError("상품 정보를 불러오는 데 실패했습니다.");
+      setProducts([]); // 실패 시 목록 비우기
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
 
   const gap = 20;
   const slidesPerView = 4;
+
+  if (loading) {
+    return (
+      <SectionContainer>
+        <SectionTitle style={{ textAlign: "center" }}>
+          상품을 불러오는 중...
+        </SectionTitle>
+      </SectionContainer>
+    );
+  }
+
+  if (error) {
+    return (
+      <SectionContainer>
+        <SectionTitle style={{ color: "#ff0000" }}>
+          상품을 불러오는데 실패했습니다...
+        </SectionTitle>
+      </SectionContainer>
+    );
+  }
+
+  // 상품이 없을 경우 (API 성공했으나 데이터가 비어있음)
+  if (products.length === 0) {
+    return (
+      <SectionContainer>
+        <SectionTitle>등록된 신규 상품이 없습니다.</SectionTitle>
+      </SectionContainer>
+    );
+  }
 
   return (
     <SectionContainer>
@@ -60,12 +102,22 @@ function ProductSection() {
           initialSlide={0}
           className="product-swiper"
         >
-          {products.map((product, index) => (
-            <SwiperSlide key={index}>
+          {products.map((product) => (
+            <SwiperSlide key={product.productId}>
               <ProductCard>
-                <ImagePlaceholder $src={product.src} />
+                <ImagePlaceholder>
+                  {product.imageUrl && (
+                    <ProductImage
+                      src={product.imageUrl}
+                      alt={product.productName}
+                    />
+                  )}
+                </ImagePlaceholder>
                 <div className="product-info">
-                  <ProductName>{product.name}</ProductName>
+                  <ProductName>{product.productName}</ProductName>
+                  <ProductPoints>
+                    {new Intl.NumberFormat().format(product.productPoints)}P
+                  </ProductPoints>
                 </div>
               </ProductCard>
             </SwiperSlide>
@@ -129,12 +181,29 @@ const ImagePlaceholder = styled.div`
   width: 100%;
   aspect-ratio: 1 / 1;
   border-radius: 12px;
-  background-color: #eeeeee;
-  background-image: url(${(props) => props.$src});
-  background-size: cover;
-  background-position: center;
+  background-color: #eeeeee; /* 이미지가 없을 때의 배경색 */
+  overflow: hidden; /* 이미지가 박스 밖으로 튀어나가지 않도록 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+`;
+
+const ProductImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 `;
 
 const ProductName = styled.span`
   font-weight: 500;
+  display: block;
+  text-align: center;
+`;
+
+const ProductPoints = styled.span`
+  font-weight: 500;
+  margin-top: 4px;
+  display: block;
+  text-align: right;
 `;

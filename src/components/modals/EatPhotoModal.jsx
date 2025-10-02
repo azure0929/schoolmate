@@ -69,6 +69,7 @@ const EatPhotoModal = ({ isOpen, onClose, onUpload, studentSchoolName }) => {
       // onUpload 함수를 호출하여 AI 분석 (백엔드 /api/v1/photos/upload 호출)
       const response = await onUpload(selectedFile); // MealPhotoSection의 handlePhotoUpload 호출
 
+      // 백엔드에서 받은 결과 문자열 그대로 저장
       const resultText = response.data;
       setAnalysisResult(resultText);
 
@@ -81,7 +82,7 @@ const EatPhotoModal = ({ isOpen, onClose, onUpload, studentSchoolName }) => {
     } catch (error) {
       console.error("AI 분석 요청 실패:", error);
       alert(
-        `AI 분석 중 오류가 발생했습니다: ${error.response?.data || "서버 통신 오류"}`,
+        `AI 분석 중 오류가 발생했습니다: ${error.response?.data?.message || "서버 통신 오류"}`,
       );
       setCurrentStep(STEPS.UPLOAD); // 오류 발생 시 초기 상태로 복귀
     }
@@ -122,7 +123,13 @@ const EatPhotoModal = ({ isOpen, onClose, onUpload, studentSchoolName }) => {
           return (
             <SubmitButton
               type="button"
-              onClick={() => setCurrentStep(STEPS.UPLOAD)}
+              onClick={() => {
+                setCurrentStep(STEPS.UPLOAD);
+                setSelectedImageURL(null); // 사진 미리보기 초기화
+                setSelectedFile(null); // 파일 객체 초기화
+                setAnalysisResult(null); // 결과 메시지 초기화
+                // input type="file"의 값 초기화를 위해 file input을 직접 조작해야 할 수도 있다.
+              }}
             >
               다시 선택
             </SubmitButton>
@@ -139,10 +146,7 @@ const EatPhotoModal = ({ isOpen, onClose, onUpload, studentSchoolName }) => {
     <div>
       <ModalOverlay onClick={onClose} />
       <ModalContent>
-        {/* 학교 정보 표시 영역 */}
-        <SchoolInfoBar>{studentSchoolName || "학교 정보 없음"}</SchoolInfoBar>
-
-        {/* 파일 선택/업로드 영역 */}
+        {/* 파일 선택 input (숨김) */}
         <input
           type="file"
           name="eatphoto"
@@ -166,16 +170,20 @@ const EatPhotoModal = ({ isOpen, onClose, onUpload, studentSchoolName }) => {
           </FileSelectLabel>
         </div>
 
+        {/* 이미지 및 로딩 텍스트 렌더링 영역 */}
         <EatPhotoWrap>
-          {selectedImageURL && (
-            <img src={selectedImageURL} alt="Uploaded meal" />
-          )}
+          {(currentStep === STEPS.UPLOAD ||
+            currentStep === STEPS.CONFIRMATION) &&
+            selectedImageURL && (
+              <img src={selectedImageURL} alt="사진 미리보기" />
+            )}
+
           {currentStep === STEPS.LOADING && (
             <LoadingText>분석 중...</LoadingText>
           )}
         </EatPhotoWrap>
 
-        {/* AI 분석 결과 메시지 */}
+        {/* AI 분석 결과 메시지 (CONFIRMATION 단계에서만 표시) */}
         {analysisResult && currentStep === STEPS.CONFIRMATION && (
           <AnalysisResultText isConfirmed={isSchoolLunchConfirmed}>
             {analysisResult}
@@ -252,7 +260,6 @@ const FileSelectLabel = styled.label`
   height: 32px;
   border-radius: 8px;
   background-color: #d5d5d5;
-  color: #000;
   cursor: pointer;
   user-select: none;
   transition: background-color 0.2s;
@@ -262,6 +269,7 @@ const FileSelectLabel = styled.label`
 `;
 
 const EatPhotoWrap = styled.div`
+  position: relative;
   margin: 20px auto 0;
   width: 364px;
   height: 278px;
@@ -272,7 +280,6 @@ const EatPhotoWrap = styled.div`
   justify-content: center;
   align-items: center;
   overflow: hidden;
-  position: relative;
 
   img {
     width: 100%;
@@ -283,19 +290,24 @@ const EatPhotoWrap = styled.div`
 `;
 
 const LoadingText = styled.div`
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   font-size: 1.5rem;
-  color: #e91e63;
+  color: var(--primary-color);
   font-weight: bold;
+  text-align: center;
+  z-index: 1;
 `;
 
 const AnalysisResultText = styled.p.withConfig({
-  shouldForwardProp: (prop) => prop !== "isConfirmed", // 경고 제거
+  shouldForwardProp: (prop) => prop !== "isConfirmed", // prop 경고 제거
 })`
   margin-top: 20px;
   font-size: 1.1rem;
   font-weight: 600;
-  color: ${(props) =>
-    props.isConfirmed ? "#4CAF50" : "#F44336"}; /* 초록색/빨간색 */
+  color: ${(props) => (props.isConfirmed ? "#4CAF50" : "#F44336")};
   text-align: center;
 `;
 
