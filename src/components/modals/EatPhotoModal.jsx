@@ -100,7 +100,7 @@ const EatPhotoModal = ({ isOpen, onClose, onUpload, studentSchoolName }) => {
       case STEPS.UPLOAD:
         return (
           <SubmitButton type="button" onClick={handleAIBaseUpload}>
-            AI 분석 요청 (제출)
+            제출
           </SubmitButton>
         );
       case STEPS.LOADING:
@@ -114,7 +114,7 @@ const EatPhotoModal = ({ isOpen, onClose, onUpload, studentSchoolName }) => {
         if (isSchoolLunchConfirmed) {
           return (
             <SubmitButton type="button" onClick={handleFinalConfirmation}>
-              확인 (모달 닫기)
+              확인
             </SubmitButton>
           );
         } else {
@@ -209,7 +209,7 @@ const ModalContent = styled.div`
   left: 50%;
   transform: translate(-50%, -50%);
   padding: 30px;
-  padding-top: 50px; /* SchoolInfoBar 공간 확보 */
+  padding-top: 50px;
   border-radius: 36px;
   width: 554px;
   background-color: rgba(255, 255, 255, 0.95);
