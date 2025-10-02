@@ -10,6 +10,12 @@ import axios from "axios";
 const BASE_API_URL =
   import.meta.env.REACT_APP_API_URL || "http://localhost:9000/api";
 
+// 카카오 인가 요청을 위한 상수 추가
+// 실제 애플리케이션에서는 이 값을 환경 변수로 관리해야 합니다.
+const KAKAO_CLIENT_ID = "f71b4c3a397902b27c666e262e974e86";
+const KAKAO_REDIRECT_URI = "http://localhost:9000/login/oauth2/code/kakao";
+const KAKAO_SCOPE = "profile_nickname%20account_email";
+
 // Axios 인스턴스 생성 및 기본 URL 설정
 const api = axios.create({
   baseURL: BASE_API_URL,
@@ -41,7 +47,14 @@ const Login = () => {
       // 인스턴스 사용: 전체 URL 대신 상대 경로만 사용
       const response = await api.post("/auth/login", { email, password });
 
-      const token = response.headers.authorization?.split(" ")[1];
+      // 토큰 추출 안정화 (소문자/대문자 헤더 모두 처리)
+      const authHeader =
+        response.headers.authorization || response.headers.Authorization;
+      let token = null;
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        token = authHeader.split(" ")[1];
+      }
+      // ------------------------------------------
 
       if (token) {
         localStorage.setItem("authToken", token);
@@ -64,18 +77,17 @@ const Login = () => {
         // 서버 응답이 있는 경우 (401, 403 등)
         try {
           // 백엔드 LoginFilter의 unsuccessfulAuthentication 응답 파싱
-          // 응답이 JSON이 아니라 문자열로 올 가능성을 대비하여 .data만 사용
           const errorResponseText = error.response.data;
-          // 백엔드 실패 응답: {"error": "로그인 실패", "message": "이메일 또는 비밀번호가 일치하지 않습니다."}
+          // 응답이 JSON 문자열일 경우를 대비하여 파싱 시도
           const errorData = JSON.parse(errorResponseText);
           errorMessage = errorData.message || errorMessage;
         } catch (e) {
-          // JSON 파싱 실패 시, 상태 메시지 사용
-          errorMessage = error.response.statusText || errorMessage;
-        }
-        // 401 Unauthorized 일 때만 경고 메시지 출력
-        if (error.response.status === 401) {
-          errorMessage = "이메일 또는 비밀번호가 일치하지 않습니다.";
+          // JSON 파싱 실패 시, 401 Unauthorized 일 때의 명시적 메시지 사용
+          if (error.response.status === 401) {
+            errorMessage = "이메일 또는 비밀번호가 일치하지 않습니다.";
+          } else {
+            errorMessage = error.response.statusText || errorMessage;
+          }
         }
       } else if (error.request) {
         // 요청은 보냈으나 응답을 받지 못한 경우 (네트워크 에러)
@@ -90,14 +102,20 @@ const Login = () => {
     }
   };
 
+  // 카카오 인가 서버로 직접 요청하는 로직으로 변경
   const handleKakaoLogin = () => {
-    // 페이지 이동 전에 다른 작업을 추가할 수 있습니다.
-    console.log("카카오 로그인 시도...");
+    console.log("카카오 로그인 시도 (직접 인가 요청 URL 구성)...");
 
-    window.location.href = "http://localhost:9000/oauth2/authorization/kakao";
+    const kakaoAuthUrl =
+      `https://kauth.kakao.com/oauth/authorize?` +
+      `response_type=code&` +
+      `client_id=${KAKAO_CLIENT_ID}&` +
+      `scope=${KAKAO_SCOPE}&` +
+      `redirect_uri=${KAKAO_REDIRECT_URI}`;
+
+    window.location.href = kakaoAuthUrl;
   };
 
-  // ... (JSX, 스타일 코드는 변경 없음)
   return (
     <LoginContainer>
       <Header />

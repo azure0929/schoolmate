@@ -80,25 +80,6 @@ const SignUpForm = () => {
   const location = useLocation();
   // 소셜 가입용 임시 토큰을 저장할 상태
   const [tempToken, setTempToken] = useState(null);
-
-  // 페이지가 처음 렌더링될 때, URL을 확인해서 임시 토큰이 있는지 검사
-  useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const token = searchParams.get("tempToken");
-    const nickname = searchParams.get("nickname");
-
-    if (token) {
-      console.log("소셜 가입 플로우 시작. 임시 토큰 발견:", token);
-      setTempToken(token);
-      // URL에 닉네임이 있다면, 폼에 미리 채워줌
-      if (nickname) {
-        setFormData((prev) => ({ ...prev, nickname: nickname }));
-      }
-    }
-  }, [location]);
-
-  // 폼 단계 관리
-  const [step, setStep] = useState(1);
   // 폼 전체 데이터 관리
   const [formData, setFormData] = useState({
     // studnet
@@ -122,6 +103,31 @@ const SignUpForm = () => {
     allergyId: [],
   });
 
+  // 페이지가 처음 렌더링될 때, URL을 확인해서 임시 토큰이 있는지 검사
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const token = searchParams.get("tempToken");
+    const nickname = searchParams.get("nickname");
+    const email = searchParams.get("email"); // 이메일 파라미터 추가
+
+    if (token) {
+      console.log("소셜 가입 플로우 시작. 임시 토큰 발견.");
+      setTempToken(token);
+
+      // 이메일과 닉네임을 폼 데이터에 미리 채우고, 임시 비밀번호 설정
+      setFormData((prev) => ({
+        ...prev,
+        email: email || prev.email,
+        nickname: nickname || prev.nickname,
+        password: "SOCIAL_USER_TEMP_PASSWORD", // 임시 비밀번호 통일
+        confirmPassword: "SOCIAL_USER_TEMP_PASSWORD",
+      }));
+    }
+  }, [location]);
+
+  // 폼 단계 관리
+  const [step, setStep] = useState(1);
+
   // 중복 및 유효성 검사 상태 관리
   const [validation, setValidation] = useState({
     email: { status: "unchecked", message: "" },
@@ -144,6 +150,7 @@ const SignUpForm = () => {
   const [isStep1NextDisabled, setIsStep1NextDisabled] = useState(true);
   const [isStep2NextDisabled, setIsStep2NextDisabled] = useState(true);
 
+  // 알레르기 데이터 (20번 항목 추가)
   const allergyData = [
     { id: 1, name: "난류", icon: allergy1 },
     { id: 2, name: "우유", icon: allergy2 },
@@ -164,6 +171,7 @@ const SignUpForm = () => {
     { id: 17, name: "오징어", icon: allergy17 },
     { id: 18, name: "조개류", icon: allergy18 },
     { id: 19, name: "잣", icon: allergy19 },
+    { id: 20, name: "아무개", icon: allergy20 }, // 20번 항목을 예시로 추가
   ];
 
   // --- useEffect: 각 단계별 유효성 검사 ---
@@ -342,14 +350,23 @@ const SignUpForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // 임시 비밀번호 및 전화번호 준비
+    const SOCIAL_TEMP_PASS = "SOCIAL_USER_TEMP_PASSWORD"; // 임시 비밀번호 통일
+    const rawPhone = formData.phone.replace(/-/g, ""); // 전화번호 하이픈 제거
+
     if (tempToken) {
       // --- 소셜 회원가입 완료 로직 ---
       const socialSignupData = {
         tempToken: tempToken,
+        student: {
+          email: formData.email,
+          password: SOCIAL_TEMP_PASS, // 통일된 임시 비밀번호 사용
+          name: formData.name,
+        },
         profile: {
           nickname: formData.nickname,
           gender: formData.gender === "남자" ? "MALE" : "FEMALE",
-          phone: formData.phone,
+          phone: rawPhone, // 하이픈 제거된 전화번호 사용
           birthDay: formData.birthDay,
           scCode: formData.scCode,
           schoolCode: formData.schoolCode,
@@ -359,22 +376,18 @@ const SignUpForm = () => {
           classNo: parseInt(formData.classNo),
           level: formData.level,
         },
-        student: {
-          // 백엔드가 최소한의 정보를 요구하므로 보내줍니다.
-          name: formData.name,
-          password: "social_user_temp_password", // 소셜 유저는 임시 비밀번호
-        },
         allergyId: formData.allergyId,
       };
 
       try {
-        // 소셜 손님용 문으로 요청을 보내도록 수정합니다.
+        // 소셜 회원가입 엔드포인트로 요청
         const response = await axios.post(
           "http://localhost:9000/api/auth/signup/social",
           socialSignupData,
         );
         alert("회원가입이 성공적으로 완료되었습니다!");
 
+        // 최종 JWT는 응답 본문에서 받는다.
         const finalToken = response.data.token;
         if (finalToken) {
           localStorage.setItem("authToken", finalToken);
@@ -390,7 +403,7 @@ const SignUpForm = () => {
         );
       }
     } else {
-      // --- 일반 회원가입 로직 (기존 코드와 완벽하게 동일) ---
+      // --- 일반 회원가입 로직 ---
       const signupData = {
         student: {
           email: formData.email,
@@ -400,7 +413,7 @@ const SignUpForm = () => {
         profile: {
           nickname: formData.nickname,
           gender: formData.gender === "남자" ? "MALE" : "FEMALE",
-          phone: formData.phone,
+          phone: rawPhone, // 하이픈 제거된 전화번호 사용
           birthDay: formData.birthDay,
           scCode: formData.scCode,
           schoolCode: formData.schoolCode,
@@ -423,12 +436,23 @@ const SignUpForm = () => {
           password: formData.password,
         });
 
-        const token = loginRes.headers.authorization?.split(" ")[1];
+        // ⭐ 안정화된 토큰 추출 로직 적용 ⭐
+        const authHeader =
+          loginRes.headers.authorization || loginRes.headers.Authorization;
+        let token = null;
+        if (authHeader && authHeader.startsWith("Bearer ")) {
+          token = authHeader.split(" ")[1];
+        }
+        // ⭐ 여기까지
 
         if (token) {
           localStorage.setItem("authToken", token);
           navigate("/mainpage", { replace: true });
         } else {
+          console.error(
+            "자동 로그인 토큰 추출 실패. 응답 헤더:",
+            loginRes.headers,
+          ); // 디버깅 로그 추가
           alert("자동 로그인에 실패했습니다. 로그인 페이지로 이동합니다.");
           navigate("/", { replace: true });
         }
@@ -529,8 +553,9 @@ const SignUpForm = () => {
     const requiredFieldsMap = {
       1: {
         email: "이메일",
-        password: "비밀번호",
-        confirmPassword: "비밀번호 확인",
+        // tempToken이 없으면 비밀번호와 확인이 필수
+        ...(!tempToken && { password: "비밀번호" }),
+        ...(!tempToken && { confirmPassword: "비밀번호 확인" }),
         name: "이름",
         nickname: "닉네임",
         birthDay: "생년월일",
@@ -575,7 +600,7 @@ const SignUpForm = () => {
         alert(validation.nicknamePattern.message);
         return;
       }
-      if (validation.passwordMatch.status !== "valid") {
+      if (!tempToken && validation.passwordMatch.status !== "valid") {
         alert(validation.passwordMatch.message);
         return;
       }
@@ -624,9 +649,7 @@ const SignUpForm = () => {
         <Title>회원가입</Title>
         <Subtitle>자세한 학교 정보를 알고 싶다면 입력해주세요!</Subtitle>
 
-        {/* ====================================================== */}
         {/* STEP 1: 필수 정보 입력 */}
-        {/* ====================================================== */}
         <RequiredForm onSubmit={handleNextStep} $visible={step === 1}>
           <RequiredSection>필수 정보 입력</RequiredSection>
 
@@ -641,51 +664,61 @@ const SignUpForm = () => {
                 placeholder="이메일"
                 value={formData.email}
                 onChange={handleChange}
+                // [수정] 소셜 로그인 시 readonly 설정
+                readOnly={!!tempToken}
+                style={!!tempToken ? { backgroundColor: "#f0f0f0" } : {}}
               />
-              <CheckButton
-                type="button"
-                onClick={() => handleDuplicateCheck("email")}
-              >
-                중복확인
-              </CheckButton>
+              {/* [수정] 소셜 로그인 시 중복 확인 버튼 숨김 */}
+              {!tempToken && (
+                <CheckButton
+                  type="button"
+                  onClick={() => handleDuplicateCheck("email")}
+                >
+                  중복확인
+                </CheckButton>
+              )}
             </InputWrapper>
             <ValidationMessage status={validation.email.status}>
               {validation.email.message}
             </ValidationMessage>
           </InputGroup>
-          {/* 비밀번호 */}
-          <InputGroup>
-            <InputWrapper>
-              <Icon>
-                <MdLockOutline />
-              </Icon>
-              <Input
-                type="password"
-                name="password"
-                placeholder="비밀번호"
-                value={formData.password}
-                onChange={handleChange}
-              />
-            </InputWrapper>
-          </InputGroup>
-          {/* 비밀번호 확인 */}
-          <InputGroup>
-            <InputWrapper>
-              <Icon>
-                <MdLockOutline />
-              </Icon>
-              <Input
-                type="password"
-                name="confirmPassword"
-                placeholder="비밀번호 확인"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-              />
-            </InputWrapper>
-            <ValidationMessage status={validation.passwordMatch.status}>
-              {validation.passwordMatch.message}
-            </ValidationMessage>
-          </InputGroup>
+          {!tempToken && (
+            <>
+              {/* 비밀번호 */}
+              <InputGroup>
+                <InputWrapper>
+                  <Icon>
+                    <MdLockOutline />
+                  </Icon>
+                  <Input
+                    type="password"
+                    name="password"
+                    placeholder="비밀번호"
+                    value={formData.password}
+                    onChange={handleChange}
+                  />
+                </InputWrapper>
+              </InputGroup>
+              {/* 비밀번호 확인 */}
+              <InputGroup>
+                <InputWrapper>
+                  <Icon>
+                    <MdLockOutline />
+                  </Icon>
+                  <Input
+                    type="password"
+                    name="confirmPassword"
+                    placeholder="비밀번호 확인"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                  />
+                </InputWrapper>
+                <ValidationMessage status={validation.passwordMatch.status}>
+                  {validation.passwordMatch.message}
+                </ValidationMessage>
+              </InputGroup>
+            </>
+          )}
 
           {/* 이름 */}
           <InputGroup>
@@ -754,7 +787,7 @@ const SignUpForm = () => {
               />
             </InputWrapper>
           </InputGroup>
-          {/* 생년월일 */}
+          {/* 성별 */}
           <InputGroup>
             <GenderButtonWrapper>
               <GenderButton
@@ -936,10 +969,6 @@ const SignUpForm = () => {
 };
 
 export default SignUpForm;
-
-// ======================================================
-// == Styled-Components 전체 코드 ==
-// ======================================================
 
 const SignUpContainer = styled.div`
   display: flex;
