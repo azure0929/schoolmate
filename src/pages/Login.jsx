@@ -118,7 +118,6 @@ const Login = () => {
 
   return (
     <LoginContainer>
-      <Header />
       <Contents>
         <TitleSection>
           <MainTitle>
@@ -129,45 +128,56 @@ const Login = () => {
         </TitleSection>
 
         {/* 폼 제출 핸들러 연결 */}
-        <LoginForm onSubmit={handleSubmit}>
-          <InputGroup>
-            <Icon>
-              <MdOutlineEmail />
-            </Icon>
-            <StyledInput
-              type="email"
-              placeholder="이메일"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </InputGroup>
+        <FormCard>
+          <FormTitle>로그인</FormTitle>
+           <LoginForm onSubmit={handleSubmit}>
+            <FormGroup>
+              <Label htmlFor="email">이메일</Label>
+              <InputGroup>
+                <Icon>
+                  <MdOutlineEmail />
+                </Icon>
+                <StyledInput
+                  id="email" 
+                  type="email"
+                  placeholder="이메일 주소를 입력해주세요"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </InputGroup>
+            </FormGroup>
 
-          <InputGroup>
-            <Icon>
-              <MdLockOutline />
-            </Icon>
-            <StyledInput
-              type="password"
-              placeholder="비밀번호"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </InputGroup>
+            <FormGroup>
+              <Label htmlFor="password">비밀번호</Label>
+              <InputGroup>
+                <Icon>
+                  <MdLockOutline />
+                </Icon>
+                <StyledInput
+                  id="password" // Label의 htmlFor와 연결
+                  type="password"
+                  placeholder="비밀번호를 입력해주세요"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </InputGroup>
 
-          <StyledButton type="submit" className="login">
-            로그인
-          </StyledButton>
-          <StyledButton
-            type="button"
-            className="kakao"
-            onClick={handleKakaoLogin}
-          >
-            <KakaoLogoImage src={KakaoLogo} alt="카카오 로고" />
-            카카오 로그인
-          </StyledButton>
-        </LoginForm>
+            </FormGroup>
+              <StyledButton type="submit" className="login">
+                로그인
+              </StyledButton>
+              <StyledButton
+                type="button"
+                className="kakao"
+                onClick={handleKakaoLogin}
+              >
+                <KakaoLogoImage src={KakaoLogo} alt="카카오 로고" />
+                카카오 로그인
+              </StyledButton>
+          </LoginForm>
 
         <LinkContainer onClick={handleSignUpClick}>회원가입</LinkContainer>
+        </FormCard>
       </Contents>
     </LoginContainer>
   );
@@ -175,8 +185,32 @@ const Login = () => {
 
 export default Login;
 
+const FormTitle = styled.h2`
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 30px;
+  color: var(--text-primary);
+  text-align: center;
+`;
+
+const FormCard = styled.div`
+  width: 100%;
+  max-width: 420px;
+  padding: 40px;
+  border-radius: 16px;
+  flex-shrink: 0;
+  background-color: rgba(255, 255, 255, 0.65);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(4px);
+`;
+
 const LoginContainer = styled.div`
-  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  width: 100%;
+  background: var(--gradient-hero); 
 `;
 
 const Contents = styled.div`
@@ -184,12 +218,12 @@ const Contents = styled.div`
   flex-direction: column;
   align-items: center;
   margin: 0 auto;
-  margin-top: 120px;
   width: fit-content;
 `;
 
 const TitleSection = styled.div`
   margin-bottom: 46px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 `;
 
 const MainTitle = styled.h1`
@@ -209,14 +243,33 @@ const LoginForm = styled.form`
   width: 100%;
 `;
 
+const FormGroup = styled.div`
+  margin-bottom: 20px;
+  width: 100%;
+  text-align: left;
+`;
+
+const Label = styled.label`
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+`;
+
 const InputGroup = styled.div`
   position: relative;
-  margin-bottom: 20px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
   display: flex;
   align-items: center;
-  padding: 10px;
+  padding: 0 15px;
+  background-color: #f9f9f9;
+  transition: border-color 0.2s;
+
+  &:focus-within {
+    border-color: var(--primary-color);
+  }
 `;
 
 const Icon = styled.div`
@@ -235,7 +288,9 @@ const StyledInput = styled.input`
   font-size: 1rem;
   padding: 0;
   color: var(--text-color);
+  height : 46px;
 `;
+
 
 const StyledButton = styled.button`
   width: 100%;
