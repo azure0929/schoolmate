@@ -41,9 +41,6 @@ const studentPoints = async () => {
   return response.data;
 };
 
-// 🚨 fetchUserEmail 함수는 더 이상 교환 요청에 필요하지 않으므로 제거합니다.
-// (Student ID는 서버의 Spring Security를 통해 자동으로 획득됨)
-
 const ProductExchangeModal = ({
   isOpen,
   onClose,
