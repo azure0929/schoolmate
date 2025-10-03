@@ -32,27 +32,17 @@ api.interceptors.request.use(
 );
 
 /**
- * 사용자 보유 포인트 조회 API (수정: /api/point-history/student/me/balance 호출)
- * authToken을 기반으로 서버에서 직접 잔액을 조회.
+ * 사용자 보유 포인트 조회 API
  * @returns {Promise<number>} 보유 포인트
  */
 const studentPoints = async () => {
-  // /api/point-history/student/me/balance 엔드포인트 직접 호출
+  // /api/point-history/student/me/balance 엔드포인트 호출
   const response = await api.get("/point-history/student/me/balance");
   return response.data;
 };
 
-/**
- * 사용자 이메일 조회 API (제거 또는 변경)
- * 교환 API가 이메일을 경로 변수로 요구하므로, 이 함수는 유지되어야 함.
- * 다만, 잔액 조회에서는 더 이상 사용되지 않는다.
- * @returns {Promise<string>} 사용자 이메일
- */
-const fetchUserEmail = async () => {
-  // 교환 API (POST /point-history/student/{email})를 위해 유지
-  const response = await api.get("/students/me");
-  return response.data.email;
-};
+// 🚨 fetchUserEmail 함수는 더 이상 교환 요청에 필요하지 않으므로 제거합니다.
+// (Student ID는 서버의 Spring Security를 통해 자동으로 획득됨)
 
 const ProductExchangeModal = ({
   isOpen,
@@ -83,12 +73,10 @@ const ProductExchangeModal = ({
     }
 
     try {
-      // studentPoints 호출
       const points = await studentPoints();
       setUserPoints(points);
     } catch (error) {
       console.error("보유 포인트 조회 실패:", error);
-      // 백엔드 에러가 404이면 "사용자 정보를 찾을 수 없습니다" 등으로 구체화 가능
       setExchangeError(
         "보유 포인트 조회에 실패했습니다. (서버 연결 또는 사용자 정보 오류)",
       );
@@ -100,26 +88,20 @@ const ProductExchangeModal = ({
   const isExchangePossible = userPoints !== null && userPoints >= needPoints;
   const pointDifference = userPoints !== null ? userPoints - needPoints : 0;
 
-  // 교환 요청 처리 (POST /api/point-history/student/{email} 호출)
+  // 교환 요청 처리 함수 수정: /api/exchanges/{productId} 호출
   const handleExchange = async () => {
     if (!selectedProduct || !isExchangePossible) return;
+
+    // productId는 Integer 타입이므로 형 변환이 필요하지 않도록 백엔드 컨트롤러에 맞춥니다.
+    const productId = selectedProduct.productId;
 
     setCurrentStep(STEPS.EXCHANGING);
     setExchangeError(null);
 
     try {
-      // 1. 사용자 이메일 조회
-      const userEmail = await fetchUserEmail();
-
-      // 2. 상품 교환 API 호출
-      const exchangeData = {
-        tsType: "EXCHANGE",
-        amount: -needPoints, // 차감 포인트는 음수
-        refType: "상품교환",
-        refId: selectedProduct.productId,
-      };
-
-      await api.post(`/point-history/student/${userEmail}`, exchangeData);
+      // 1. 상품 교환 API 호출: POST /api/exchanges/{productId}
+      // 이 API는 JWT 토큰을 통해 학생 ID를 가져오므로 별도의 데이터(body)가 필요 없다.
+      await api.post(`/exchanges/${productId}`);
 
       // 교환 성공
       setExchangeSuccess(true);
@@ -131,14 +113,14 @@ const ProductExchangeModal = ({
       let errorMessage = "상품 교환 중 알 수 없는 오류가 발생했습니다.";
 
       if (error.response) {
-        // 400 Bad Request (잔액 부족, 역할 오류 등 IllegalArgumentException) 처리
-        if (error.response.status === 400) {
-          // 서버에서 보낸 에러 메시지 대신 일반적인 메시지 사용 (Controller가 에러 메시지를 반환하지 않는 구조이므로)
-          errorMessage =
-            error.response.data.message ||
-            "포인트가 부족하거나 유효하지 않은 요청입니다.";
+        // 백엔드에서 400 Bad Request 또는 404 Not Found 시 에러 메시지를 body로 보냄
+        if (error.response.data && typeof error.response.data === "string") {
+          // 서버에서 보낸 에러 메시지(예: "사용 가능한 포인트가 부족합니다.") 사용
+          errorMessage = error.response.data;
+        } else if (error.response.status === 400) {
+          errorMessage = "유효하지 않은 요청입니다. (포인트 부족 등)";
         } else if (error.response.status === 404) {
-          errorMessage = "사용자 정보를 찾을 수 없습니다.";
+          errorMessage = "해당 상품을 찾을 수 없습니다.";
         } else {
           errorMessage = `서버 오류 (${error.response.status})가 발생했습니다.`;
         }
