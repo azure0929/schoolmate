@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
-import Header from "@/components/common/Header";
 import TopMenu from "@/components/mainpage/TopMenu";
 import { MdSearch } from "react-icons/md";
 import axios from "axios";
@@ -206,7 +205,6 @@ function PointShop() {
 
   return (
     <PointShopWrap>
-      <Header />
       <TopMenu />
       <SearchBar>
         <input
@@ -274,7 +272,7 @@ function PointShop() {
         />
       </ProductItemsSection>
 
-      {/* 🚨 PaginationControls 컴포넌트 적용 */}
+      {/* PaginationControls 컴포넌트 적용 */}
       <PaginationControls
         currentPage={currentPage}
         totalPages={totalPages}
@@ -293,10 +291,6 @@ function PointShop() {
 }
 
 export default PointShop;
-
-// ----------------------------------------------------
-// Styled Components (하단 페이지네이션 관련 스타일 제거)
-// ----------------------------------------------------
 
 const ErrorTitle = styled.h2`
   color: ${PRIMARY_COLOR};
