@@ -1,38 +1,57 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
 import Header from "@/components/common/Header";
 import TopMenu from "@/components/mainpage/TopMenu";
 import { MdSearch } from "react-icons/md";
+import axios from "axios";
+import ProductExchangeModal from "@/components/modals/ProductExchangeModal";
+import PaginationControls from "@/components/common/PaginationControls";
 
-const axios = {
-  get: (url) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const totalItems = 30;
-        const productsData = Array.from({ length: totalItems }, (_, i) => ({
-          id: i + 1,
-          title: `DB 상품명 ${i + 1} 예시 (Axios)`,
-          point: (i + 1) * 1000,
-          imageUrl: `https://via.placeholder.com/242x242/f5f5f5/333?text=Item+${i + 1}`,
-          subInfo: "",
-        }));
+const BASE_API_URL =
+  import.meta.env.REACT_APP_API_URL || "http://localhost:9000/api";
 
-        resolve({ data: { products: productsData } });
-      }, 500); // 0.5초 지연
-    });
+const api = axios.create({
+  baseURL: BASE_API_URL,
+});
+
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("authToken");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
   },
+  (error) => {
+    return Promise.reject(error);
+  },
+);
+
+// 배열을 무작위로 섞는 함수 (Fisher-Yates 셔플)
+const shuffleArray = (array) => {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
 };
 
 const PRIMARY_COLOR = "#f86166";
 const ITEMS_PER_PAGE = 12;
 
 const ProductItemComponent = ({ product, isSelected, onClick }) => (
-  <ProductItem $selected={isSelected} onClick={() => onClick(product.id)}>
-    <ProductImage src={product.imageUrl} alt={product.title} />
+  <ProductItem
+    $selected={isSelected}
+    onClick={() => onClick(product.productId)}
+  >
+    <ProductImage src={product.imageUrl} alt={product.productName} />
     <ProductInfo>
       <ProductSubInfo>{product.subInfo}</ProductSubInfo>
-      <ProductTitle>{product.title}</ProductTitle>
-      <ProductPoint>{product.point.toLocaleString()}P</ProductPoint>
+      <ProductTitle>{product.productName}</ProductTitle>
+      <ProductPoint>
+        {new Intl.NumberFormat().format(product.productPoints)}P
+      </ProductPoint>
     </ProductInfo>
   </ProductItem>
 );
@@ -48,7 +67,7 @@ function ProductList({ products = [], isLoading, selectedItemId, onSelect }) {
   if (products.length === 0) {
     return (
       <GridContainer>
-        <p>등록된 상품이 없습니다.</p>
+        <p>검색 결과가 없거나 등록된 상품이 없습니다.</p>
       </GridContainer>
     );
   }
@@ -57,9 +76,9 @@ function ProductList({ products = [], isLoading, selectedItemId, onSelect }) {
     <GridContainer>
       {products.map((product) => (
         <ProductItemComponent
-          key={product.id}
+          key={product.productId}
           product={product}
-          isSelected={product.id === selectedItemId}
+          isSelected={product.productId === selectedItemId}
           onClick={onSelect}
         />
       ))}
@@ -68,48 +87,122 @@ function ProductList({ products = [], isLoading, selectedItemId, onSelect }) {
 }
 
 function PointShop() {
-  // DB에서 한 번에 로드한 전체 상품 목록
   const [allProducts, setAllProducts] = useState([]);
+  const [initialProducts, setInitialProducts] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [selectedItemId, setSelectedItemId] = useState(null);
+  const [sortOrder, setSortOrder] = useState("random");
 
-  // Axios를 사용해 마운트 시 전체 상품을 로드
-  useEffect(() => {
-    const loadAllProducts = async () => {
-      setIsLoading(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterTerm, setFilterTerm] = useState("");
 
-      try {
-        const response = await axios.get("/api/products"); // Axios GET 요청 시뮬레이션
-        // API 응답 데이터 (response.data.products)를 전체 상품 목록으로 저장
-        setAllProducts(response.data.products);
-      } catch (error) {
-        console.error("상품 로드 중 오류 발생:", error);
-        setAllProducts([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-    loadAllProducts();
-    // 의존성 배열을 빈 배열로 두어 마운트 시 한 번만 실행되도록.
+  // API 호출 및 랜덤 셔플 적용 (상품 목록 로드 함수)
+  const loadAllProducts = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await api.get("/products");
+      const shuffledProducts = shuffleArray(response.data);
+
+      setAllProducts(shuffledProducts);
+      setInitialProducts(shuffledProducts);
+    } catch (err) {
+      console.error("상품 로드 중 오류 발생:", err);
+      setError("상품 정보를 불러오는 데 실패했습니다.");
+      setAllProducts([]);
+      setInitialProducts([]);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadAllProducts();
+  }, [loadAllProducts]);
+
+  // 검색 실행 핸들러
+  const handleSearch = useCallback(() => {
+    setFilterTerm(searchTerm.trim());
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  // 정렬 및 필터링 로직 (Memoized)
+  const processedProducts = useMemo(() => {
+    let filtered = allProducts;
+
+    if (filterTerm) {
+      const lowerCaseFilterTerm = filterTerm.toLowerCase();
+      filtered = allProducts.filter((product) =>
+        product.productName.toLowerCase().includes(lowerCaseFilterTerm),
+      );
+    }
+
+    let sorted = [...filtered];
+
+    if (sortOrder === "random") {
+      sorted = filterTerm ? shuffleArray(filtered) : initialProducts;
+    } else if (sortOrder === "lowPoint") {
+      sorted.sort((a, b) => a.productPoints - b.productPoints);
+    } else if (sortOrder === "highPoint") {
+      sorted.sort((a, b) => b.productPoints - a.productPoints);
+    }
+
+    return sorted;
+  }, [allProducts, initialProducts, sortOrder, filterTerm]);
 
   const handleItemClick = (id) => {
     setSelectedItemId((prevId) => (prevId === id ? null : id));
   };
 
-  // 클라이언트 측 페이지네이션 계산
-  const totalItems = allProducts.length;
-  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
-  const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1);
+  const selectedProduct = useMemo(() => {
+    return (
+      processedProducts.find((p) => p.productId === selectedItemId) || null
+    );
+  }, [selectedItemId, processedProducts]);
 
-  // 현재 페이지에 표시할 상품 목록 계산
+  useEffect(() => {
+    setSelectedItemId(null);
+  }, [currentPage, sortOrder, filterTerm]);
+
+  const handleExchangeClick = () => {
+    if (selectedProduct) {
+      setIsModalOpen(true);
+    } else {
+      alert("먼저 교환할 상품을 선택해주세요.");
+    }
+  };
+
+  const handleExchangeSuccess = () => {
+    setIsModalOpen(false);
+    // 포인트 잔액 변경을 반영하기 위해 상품 목록을 다시 로드 (포인트 조회는 모달 내부에서 다시 발생)
+    loadAllProducts();
+  };
+
+  // 페이지네이션 계산
+  const totalItems = processedProducts.length;
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+  // const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1); // PaginationControls에서 처리
+
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const currentProducts = allProducts.slice(
+  const currentProducts = processedProducts.slice(
     startIndex,
     startIndex + ITEMS_PER_PAGE,
   );
+
+  if (error) {
+    return (
+      <PointShopWrap>
+        <Header />
+        <TopMenu />
+        <ErrorTitle>{error}</ErrorTitle>
+      </PointShopWrap>
+    );
+  }
 
   return (
     <PointShopWrap>
@@ -122,58 +215,106 @@ function PointShop() {
           id="productinfo"
           name="productinfo"
           className="searchinput"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleSearch();
+            }
+          }}
         />
-        <MdSearch className="search-icon" />
+        <MdSearch className="search-icon" onClick={handleSearch} />
       </SearchBar>
 
       <ProductItemsSection>
         <SortAndExchangeBar>
           <SortButtons>
-            <SortButton $active={true}>낮은 포인트순</SortButton>
-            <SortButton $active={false}>높은 포인트순</SortButton>
+            <SortButton
+              $active={sortOrder === "random"}
+              onClick={() => {
+                setSortOrder("random");
+                setCurrentPage(1);
+              }}
+            >
+              랜덤순
+            </SortButton>
+            <SortButton
+              $active={sortOrder === "lowPoint"}
+              onClick={() => {
+                setSortOrder("lowPoint");
+                setCurrentPage(1);
+              }}
+            >
+              낮은 포인트순
+            </SortButton>
+            <SortButton
+              $active={sortOrder === "highPoint"}
+              onClick={() => {
+                setSortOrder("highPoint");
+                setCurrentPage(1);
+              }}
+            >
+              높은 포인트순
+            </SortButton>
           </SortButtons>
-          <ExchangeButton>교환하기</ExchangeButton>
+          {/* ExchangeButton에 핸들러 적용 */}
+          <ExchangeButton
+            disabled={!selectedItemId}
+            onClick={handleExchangeClick}
+          >
+            교환하기
+          </ExchangeButton>
         </SortAndExchangeBar>
 
         <ProductList
-          products={currentProducts} // 현재 페이지 상품만 전달
+          products={currentProducts}
           isLoading={isLoading}
           selectedItemId={selectedItemId}
           onSelect={handleItemClick}
         />
       </ProductItemsSection>
 
-      <BottomPagination>
-        {pageNumbers.map((num) => (
-          <PageNumber
-            key={num}
-            $active={num === currentPage}
-            onClick={() => setCurrentPage(num)}
-          >
-            {num}
-          </PageNumber>
-        ))}
-        <PageNumber
-          onClick={() =>
-            setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-          }
-          $active={false}
-        >
-          &gt;
-        </PageNumber>
-      </BottomPagination>
+      {/* 🚨 PaginationControls 컴포넌트 적용 */}
+      <PaginationControls
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+      />
+
+      {/* ProductExchangeModal 렌더링 */}
+      <ProductExchangeModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        selectedProduct={selectedProduct}
+        onExchangeSuccess={handleExchangeSuccess}
+      />
     </PointShopWrap>
   );
 }
 
 export default PointShop;
 
+// ----------------------------------------------------
+// Styled Components (하단 페이지네이션 관련 스타일 제거)
+// ----------------------------------------------------
+
+const ErrorTitle = styled.h2`
+  color: ${PRIMARY_COLOR};
+  margin-top: 50px;
+  font-size: 1.5rem;
+  font-weight: 500;
+`;
+
 const PointShopWrap = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
   min-height: 100vh;
-  padding-top: 80px;
+
+  @media (max-width: 768px) {
+    padding-top: 60px;
+    padding-bottom: 30px;
+  }
 `;
 
 const SearchBar = styled.div`
@@ -183,6 +324,11 @@ const SearchBar = styled.div`
   height: 40px;
   border-radius: 4px;
   border: 1px solid #e0e0e0;
+
+  @media (max-width: 768px) {
+    width: 90%;
+    margin-top: 20px;
+  }
 
   input {
     width: 100%;
@@ -201,12 +347,17 @@ const SearchBar = styled.div`
     right: 15px;
     transform: translateY(-50%);
     color: #999;
+    cursor: pointer;
   }
 `;
 
 const ProductItemsSection = styled.div`
   margin-top: 40px;
   width: 1060px;
+
+  @media (max-width: 1100px) {
+    width: 90%;
+  }
 `;
 const SortAndExchangeBar = styled.div`
   display: flex;
@@ -214,6 +365,11 @@ const SortAndExchangeBar = styled.div`
   align-items: center;
   margin-bottom: 30px;
   gap: 10px;
+
+  @media (max-width: 768px) {
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
 `;
 const SortButtons = styled.div`
   display: flex;
@@ -246,6 +402,15 @@ const ExchangeButton = styled.button`
   font-size: 0.9375rem;
   font-weight: 700;
   margin-left: 20px;
+
+  &:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 768px) {
+    margin-left: 0;
+  }
 `;
 
 const GridContainer = styled.div`
@@ -256,6 +421,13 @@ const GridContainer = styled.div`
   width: 100%;
   height: auto;
   min-height: 980px;
+
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+    grid-gap: 12px;
+    grid-template-rows: auto;
+    min-height: auto;
+  }
 `;
 
 const ProductItem = styled.div`
@@ -275,6 +447,10 @@ const ProductItem = styled.div`
     border: 1px solid ${PRIMARY_COLOR}; 
     box-shadow: 0 0 5px rgba(248, 97, 102, 0.3);
   `}
+
+  @media (max-width: 768px) {
+    height: 250px;
+  }
 `;
 const ProductImage = styled.img`
   width: 100%;
@@ -282,6 +458,11 @@ const ProductImage = styled.img`
   max-height: 242px;
   object-fit: cover;
   border-radius: 4px;
+
+  @media (max-width: 768px) {
+    max-height: 180px;
+    height: 70%;
+  }
 `;
 const ProductInfo = styled.div`
   padding: 10px 0;
@@ -308,32 +489,4 @@ const ProductPoint = styled.p`
   font-weight: 500;
   color: #191919;
   margin: 4px 0 0 0;
-`;
-
-const BottomPagination = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-top: 50px;
-  gap: 5px;
-  margin-bottom: 50px;
-`;
-const PageNumber = styled.span`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  font-size: 1rem;
-  cursor: pointer;
-  color: ${(props) => (props.$active ? "white" : "#999")};
-  background-color: ${(props) =>
-    props.$active ? PRIMARY_COLOR : "transparent"};
-  border-radius: 4px;
-  font-weight: ${(props) => (props.$active ? "700" : "500")};
-
-  &:hover {
-    background-color: ${(props) => (props.$active ? PRIMARY_COLOR : "#f0f0f0")};
-    color: ${(props) => (props.$active ? "white" : "#191919")};
-  }
 `;
