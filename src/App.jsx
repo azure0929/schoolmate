@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import React, { useEffect } from "react"; // useEffect 추가
 import MainPage from "@/pages/MainPage";
 import Login from "@/pages/Login";
@@ -9,6 +9,7 @@ import Schedule from "@/pages/Schedule";
 import MyPage from "@/pages/MyPage";
 import Admin from "@/pages/admin/Admin";
 import OAuth2RedirectHandler from "@/pages/OAuthRedirectHandler";
+import MainLayout from "@/components/common/MainLayout"; 
 
 // 인증이 필요한 라우트를 감싸는 컴포넌트 (AuthGuard 역할)
 const ProtectedRoute = ({ children }) => {
@@ -26,26 +27,40 @@ const ProtectedRoute = ({ children }) => {
   return token ? children : null; // 토큰이 있을 때만 자식 컴포넌트 렌더링
 };
 
+// 로그인한 사용자가 접근하지 못하도록 막도록 한다.
+const PublicRoute = ({ children }) => {
+  const token = localStorage.getItem("authToken");
+  return token ? <Navigate to="/mainpage" replace /> : children;
+};
+
 function App() {
   return (
     <>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Login />} />
-          <Route path="/oauth-redirect" element={<OAuth2RedirectHandler />} />
-          <Route path="/signup" element={<SignUp />} />
-          <Route
-            path="/mainpage"
+          <Route path="/" 
             element={
-              <ProtectedRoute>
-                <MainPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="/pointshop" element={<PointShop />} />
-          <Route path="/pointhistory" element={<PointHistory />} />
-          <Route path="/schedule" element={<Schedule />} />
-          <Route path="/mypage" element={<MyPage />} />
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            }/>
+          <Route
+            path="/signup"
+            element={
+              <PublicRoute>
+                <SignUp />
+              </PublicRoute>
+            }/>
+          <Route path="/oauth-redirect" element={<OAuth2RedirectHandler />} />
+
+          <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+            <Route path="/mainpage" element={<MainPage />} />
+            <Route path="/mypage" element={<MyPage />} />
+            <Route path="/pointshop" element={<PointShop />} />
+            <Route path="/pointhistory" element={<PointHistory />} />
+            <Route path="/schedule" element={<Schedule />} />
+          </Route>
+
           <Route path="/admin" element={<Admin />} />
         </Routes>
       </BrowserRouter>

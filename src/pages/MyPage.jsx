@@ -138,7 +138,6 @@ const MyPage = () => {
 
   return (
     <MainPageWrap>
-      <Header />
       <TopMenu />
       <WelcomeMessage>
         <span>임윤아</span>님 안녕하세요?

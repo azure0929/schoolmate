@@ -29,7 +29,6 @@ function MainPage() {
   return (
     <AppContainer>
       <ContentWrapper>
-        <Header />
         <DateSection />
         <TopMenu />
 
