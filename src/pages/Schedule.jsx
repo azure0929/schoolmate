@@ -45,5 +45,4 @@ const Schedule = () => {
     </AppContainer>
   )
 }
-
 export default Schedule
