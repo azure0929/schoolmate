@@ -3,19 +3,18 @@ import styled from "styled-components";
 import axios from "axios";
 import PaginationControls from "@/components/common/PaginationControls";
 
-// 백엔드 기본 URL 설정
 const BASE_URL = "http://localhost:9000/api";
+const ATTENDANCE_COUNT_API = "/attend/student/me/count";
 
 const ActivityLogContent = () => {
   const [pointBalance, setPointBalance] = useState(0);
   const [usedPoints, setUsedPoints] = useState(0);
   const [exchangeList, setExchangeList] = useState([]);
   const [mealCount, setMealCount] = useState(0);
+  const [attendanceDays, setAttendanceDays] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-
-  const attendanceDays = "N/A";
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -35,22 +34,31 @@ const ActivityLogContent = () => {
     }
 
     try {
-      const [balanceRes, mealCountRes, usedPointsRes, exchangeRes] =
-        await Promise.all([
-          axios.get(`${BASE_URL}/point-history/student/me/balance`, config),
-          axios.get(`${BASE_URL}/point-history/student/me/meal-count`, config),
-          axios.get(`${BASE_URL}/point-history/student/me/used-points`, config),
+      const [
+        balanceRes,
+        mealCountRes,
+        usedPointsRes,
+        exchangeRes,
+        attendanceCountRes,
+      ] = await Promise.all([
+        axios.get(`${BASE_URL}/point-history/student/me/balance`, config),
+        axios.get(`${BASE_URL}/point-history/student/me/meal-count`, config),
+        axios.get(`${BASE_URL}/point-history/student/me/used-points`, config),
 
-          // 💡 수정된 부분: size=6으로 변경
-          axios.get(
-            `${BASE_URL}/exchanges/my-exchanges?page=${currentPage}&size=6&sort=exchangeDate,desc`,
-            config,
-          ),
-        ]);
+        // 교환 목록 API
+        axios.get(
+          `${BASE_URL}/exchanges/my-exchanges?page=${currentPage}&size=6&sort=exchangeDate,desc`,
+          config,
+        ),
+
+        // 출석 일 수 API
+        axios.get(`${BASE_URL}${ATTENDANCE_COUNT_API}`, config),
+      ]);
 
       setPointBalance(balanceRes.data);
       setMealCount(mealCountRes.data);
       setUsedPoints(usedPointsRes.data);
+      setAttendanceDays(attendanceCountRes.data || 0); // 출석 일 수 상태 업데이트
 
       const pageData = exchangeRes.data;
       setTotalPages(pageData.totalPages);
@@ -120,6 +128,7 @@ const ActivityLogContent = () => {
       setPointBalance(0);
       setMealCount(0);
       setUsedPoints(0);
+      setAttendanceDays(0);
       setExchangeList([]);
     } finally {
       setIsLoading(false);
@@ -143,7 +152,7 @@ const ActivityLogContent = () => {
       <SummarySection>
         <SummaryItem>
           <Label>출석 일수:</Label>
-          <Value>{attendanceDays}</Value>
+          <Value>{attendanceDays.toLocaleString()}</Value>
         </SummaryItem>
         <SummaryItem>
           <Label>급식 사진 업로드 수:</Label>
