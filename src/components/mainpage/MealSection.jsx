@@ -1,108 +1,20 @@
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import styled, { createGlobalStyle } from "styled-components";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
+import axios from "axios";
+
 import "swiper/css";
 import "swiper/css/pagination";
 
-function MealSection() {
-  const baseMeals = [
-    {
-      meal: [
-        "칼슘찹쌀흑미밥",
-        "오징어무국",
-        "안동찜닭",
-        "무말랭이진미채초무침",
-        "김말이튀김",
-        "떡볶이",
-        "배추김치",
-      ],
-    },
-  ];
+const BASE_API_URL = "http://localhost:9000/api/school";
 
-  const gap = 20;
-  const slidesPerView = 4.3;
-
-  const formatDate = (date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}.${month}.${day}`;
-  };
-
-  const generateMonthlyMeal = (mealData) => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = today.getMonth();
-
-    const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
-
-    const monthlyMeals = [];
-
-    for (let day = 1; day <= lastDayOfMonth; day++) {
-      const date = new Date(year, month, day);
-
-      monthlyMeals.push({
-        date: formatDate(date),
-        meal: mealData[(day - 1) % mealData.length].meal,
-      });
-    }
-    return monthlyMeals;
-  };
-
-  const days = generateMonthlyMeal(baseMeals);
-  const todayDate = formatDate(new Date());
-
-  const activeDayIndex = days.findIndex((day) => day.date === todayDate);
-
-  const initialSlideIndex = activeDayIndex !== -1 ? activeDayIndex : 0;
-
-  return (
-    <SectionWrapper>
-      <SectionTitle>식단</SectionTitle>
-
-      <SwiperPaginationStyles />
-
-      <DayGridContainer>
-        <Swiper
-          slidesPerView={slidesPerView}
-          spaceBetween={gap}
-          modules={[Pagination]}
-          pagination={{
-            clickable: true,
-          }}
-          initialSlide={initialSlideIndex}
-          className="schedule-swiper"
-        >
-          {days.map((day, index) => {
-            const isActive = day.date === todayDate;
-
-            return (
-              <SwiperSlide key={index}>
-                <DayColumn $active={isActive}>
-                  <DayDate $active={isActive}>{day.date}</DayDate>
-                  <div className="meal-list">
-                    {day.meal.map((item, i) => (
-                      <MealItem key={i}>{item}</MealItem>
-                    ))}
-                  </div>
-                </DayColumn>
-              </SwiperSlide>
-            );
-          })}
-        </Swiper>
-      </DayGridContainer>
-    </SectionWrapper>
-  );
-}
-
-export default MealSection;
+// --- 1. 모든 styled-components 정의를 컴포넌트 함수보다 위로 옮깁니다. ---
 
 const SwiperPaginationStyles = createGlobalStyle`
   :root {
-    --swiper-pagination-color: #e91e63;
+    --swiper-pagination-color: var(--primary-color, #e91e63);
   }
-
   .schedule-swiper .swiper-pagination-bullet {
     background: #ccc; 
     opacity: 1;
@@ -111,11 +23,9 @@ const SwiperPaginationStyles = createGlobalStyle`
     margin: 0 4px;
     transition: background 0.3s;
   }
-  
   .schedule-swiper .swiper-pagination-bullet-active {
-    background: var(--swiper-pagination-color, #e91e63) !important; 
+    background: var(--swiper-pagination-color) !important; 
   }
-
   .schedule-swiper .swiper-pagination {
     display: flex;
     justify-content: center;
@@ -150,46 +60,46 @@ const DayColumn = styled.div`
   text-align: center;
   flex-direction: column;
   padding: 20px;
-  border: 1px solid ${(props) => (props.$active ? "#e91e63" : "#e0e0e0")};
-  background-color: ${(props) => (props.$active ? "#fff5f7" : "white")};
-  box-shadow: ${(props) =>
-    props.$active
-      ? "0 4px 15px rgba(233, 30, 99, 0.15)"
-      : "0 2px 8px rgba(0,0,0,0.05)"};
+  border-radius: 12px;
   transition: all 0.3s ease;
   cursor: pointer;
-  border-radius: 12px;
+  background-color: white;
+  
+  border: ${(props) => 
+    props.$isActive 
+    ? "2px solid var(--primary-color)" 
+    : "1px solid #e0e0e0"};
+    
+  box-shadow: ${(props) =>
+    props.$isActive
+      ? "0 4px 15px rgba(233, 30, 99, 0.15)"
+      : "0 2px 8px rgba(0,0,0,0.05)"};
 
-  &:hover {
-    transform: none;
-    box-shadow: ${(props) =>
-      props.$active
-        ? "0 4px 15px rgba(233, 30, 99, 0.15)"
-        : "0 2px 8px rgba(0,0,0,0.05)"};
-  }
   .meal-list {
-    overflow-y: scroll;
+    overflow-y: auto;
+    text-align: left;
+    margin-top: 15px;
+    padding-right: 10px;
   }
 `;
 
 const DayDate = styled.div`
-  font-size: 1.375rem;
-  font-weight: 500;
-  color: ${(props) => (props.$active ? "#e91e63" : "#333")};
+  font-size: 1.125rem;
+  font-weight: 600;
   margin-bottom: 12px;
-  border-bottom: 1px solid ${(props) => (props.$active ? "#ffdde5" : "#f0f0f0")};
   padding-bottom: 8px;
-`;
+  border-bottom: 1px solid #f0f0f0;
 
-const MealItem = styled.div`
-  line-height: 1.8;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  margin-bottom: 12px;
+  color: ${(props) =>
+    props.$isToday && props.$isActive
+      ? "#ff5f00"
+      : props.$isActive
+      ? "var(--primary-color)"
+      : "#333"};
 `;
 
 const DotsPlaceholder = styled.div`
-  height: 362px;
+  height: 100%;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -205,3 +115,150 @@ const DotsPlaceholder = styled.div`
     margin-bottom: 6px;
   }
 `;
+
+const MealItem = styled.div`
+  line-height: 1.8;
+  margin-bottom: 8px;
+`;
+
+
+const MealSection = () => {
+  const [swiper, setSwiper] = useState(null);
+  const [monthlyMeals, setMonthlyMeals] = useState([]);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+    // 1. 로딩과 에러 상태를 관리하기 위한 state 추가
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // 날짜 및 급식 데이터 가공 로직 (기존과 동일)
+  const processMealData = (mealData) => {
+    const meals = [];
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}${(today.getMonth() + 1).toString().padStart(2, '0')}${today.getDate().toString().padStart(2, '0')}`;
+    let todayIndex = 0;
+
+    for (let i = 0; i < 30; i++) {
+      const date = new Date();
+      date.setDate(today.getDate() + i);
+
+      const year = date.getFullYear();
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      const dayOfWeek = ["일", "월", "화", "수", "목", "금", "토"][date.getDay()];
+      const yyyymmdd = `${year}${month}${day}`;
+
+      const mealForDay = mealData.find(m => m.MLSV_YMD === yyyymmdd) || null;
+      const isToday = yyyymmdd === todayStr;
+
+      if (isToday) {
+        todayIndex = i;
+      }
+
+      meals.push({
+        formattedDate: `${year}.${month}.${day}`,
+        date: day,
+        dayName: dayOfWeek,
+        isToday: isToday,
+        mealData: mealForDay ? { dishName: mealForDay.DDISH_NM } : null,
+      });
+    }
+    setActiveIndex(todayIndex);
+    return meals;
+  };
+
+    // 2. API 호출 로직을 useCallback으로 감싸고, try/catch로 에러 처리 강화
+  const fetchMonthlyMeals = useCallback(async () => {
+    setIsLoading(true);
+    setError(null); // 요청 시작 시 에러 상태 초기화
+
+    const authToken = localStorage.getItem("authToken");
+    if (!authToken) {
+      setError("로그인이 필요합니다. 인증 토큰이 없습니다.");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const response = await axios.get(`${BASE_API_URL}/meal`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+      
+      const processedData = processMealData(response.data);
+      setMonthlyMeals(processedData);
+
+    } catch (err) {
+      console.error("급식 정보 조회 실패:", err);
+      // CORS 에러는 여기에 잡히지 않고 브라우저 콘솔에만 표시될 수 있습니다.
+      setError("급식 정보를 불러오는 데 실패했습니다.");
+    } finally {
+      setIsLoading(false); // 성공/실패 여부와 관계없이 로딩 상태 종료
+    }
+  }, []); // 의존성 배열이 비어있으므로 컴포넌트가 처음 마운트될 때 한 번만 생성됩니다.
+
+
+  useEffect(() => {
+    fetchMonthlyMeals();
+  }, [fetchMonthlyMeals]);
+
+  const handleSlideClick = (index) => {
+    setActiveIndex(index);
+    if (swiper) {
+      swiper.slideTo(index);
+    }
+  };
+
+    // 3. 로딩 및 에러 상태에 따른 UI 분기 처리
+  if (isLoading) {
+    return <SectionWrapper><SectionTitle>식단</SectionTitle><div>로딩 중...</div></SectionWrapper>;
+  }
+
+  if (error) {
+    return <SectionWrapper><SectionTitle>식단</SectionTitle><div>{error}</div></SectionWrapper>;
+  }
+
+
+  return (
+    <SectionWrapper>
+      <SectionTitle>식단</SectionTitle>
+      <SwiperPaginationStyles />
+      <DayGridContainer>
+        {monthlyMeals.length > 0 ? (
+          <Swiper
+            onSwiper={setSwiper}
+            slidesPerView={4.3}
+            spaceBetween={20}
+            modules={[Pagination]}
+            pagination={{ clickable: true }}
+            initialSlide={activeIndex}
+            className="schedule-swiper"
+          >
+            {monthlyMeals.map((day, index) => (
+              <SwiperSlide key={index} onClick={() => handleSlideClick(index)}>
+                <DayColumn $isToday={day.isToday} $isActive={index === activeIndex}>
+                  <DayDate $isToday={day.isToday} $isActive={index === activeIndex}>
+                    {day.formattedDate} ({day.dayName})
+                  </DayDate>
+                  <div className="meal-list">
+                    {day.mealData ? (
+                      day.mealData.dishName.split("<br/>").map((item, i) => (
+                        <MealItem key={i}>{item.replace(/\s*\([^)]*\)/g, '')}</MealItem>
+                      ))
+                    ) : (
+                      <MealItem>급식 정보가 없습니다.</MealItem>
+                    )}
+                  </div>
+                </DayColumn>
+              </SwiperSlide>
+            ))}
+          </Swiper>
+        ) : (
+          <div>표시할 급식 정보가 없습니다.</div>
+        )}
+      </DayGridContainer>
+    </SectionWrapper>
+  );
+}
+export default MealSection;
