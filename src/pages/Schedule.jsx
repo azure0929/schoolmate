@@ -2,6 +2,7 @@ import React from "react";
 import styled from "styled-components";
 import MealSection from "@/components/mainpage/MealSection";
 import SchoolSchedule from "@/components/schedule/SchoolSchedule";
+import SchoolTimetable from "@/components/schedule/SchoolTimetable";
 import TopMenu from "@/components/mainpage/TopMenu";
 
 const AppContainer = styled.div`
@@ -36,13 +37,11 @@ const Schedule = () => {
         <MealSection />
 
         <Separator />
-
         <SchoolSchedule />
 
-        {/* <Separator />
-        <Timetable />  // 시간표 컴포넌트를 만들면 여기에 추가합니다.
-        */}
-        
+        <Separator />
+        <SchoolTimetable />
+       
       </ContentWrapper>
     </AppContainer>
   )
