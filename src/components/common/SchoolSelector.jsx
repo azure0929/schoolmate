@@ -49,7 +49,14 @@ const SchoolSelector = ({ schoolData, onSchoolChange }) => {
             majorName: schoolData.majorName || "일반과정", // 학과가 없는 학교(초, 중) 기본값
           },
         });
-        setClassList(res.data.map(c => c.CLASS_NM));
+                // 1. API 응답(res.data)에서 반 이름(CLASS_NM)만 추출하여 새 배열 생성
+        const classNames = res.data.map(c => c.CLASS_NM);
+
+        // 2. 추출된 배열을 숫자 기준으로 오름차순 정렬
+        const sortedClasses = classNames.sort((a, b) => Number(a) - Number(b));
+
+        // 3. 올바르게 정렬된 배열을 상태(state)에 저장
+        setClassList(sortedClasses);
       } catch (error) { console.error("반 조회 실패:", error); }
     };
     fetchClasses();
