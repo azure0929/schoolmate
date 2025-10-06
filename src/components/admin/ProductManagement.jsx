@@ -172,12 +172,14 @@ const ProductManagement = () => {
       setProductItems(items);
     } catch (error) {
       showAlert("상품 목록 로딩에 실패했습니다.", "error");
+      localStorage.removeItem("authToken");
+      window.location.href = "/";
     }
-  }, [showAlert]);
+  }, []);
 
   useEffect(() => {
     fetchProducts();
-  }, [fetchProducts]);
+  }, []);
 
   // 사이드바 입력 필드 초기화
   const resetSidebarState = useCallback(() => {
@@ -496,7 +498,7 @@ const ProductManagement = () => {
     if (searchBy.key === "name") {
       return "상품명을 두 글자 이상 입력하세요.";
     }
-    return "카테고리 코드 (BE, CO, CS 등)를 두 글자 이상 입력하세요.";
+    return "커피, 편의점, 배달음식, 영화, 빵집 중 하나를 입력하세요.";
   }, [searchBy.key]);
 
   return (
