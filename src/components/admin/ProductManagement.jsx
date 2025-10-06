@@ -144,7 +144,8 @@ const ProductManagement = () => {
   const [productName, setProductName] = useState("");
   const [productCategory, setProductCategory] = useState("");
   const [productPoints, setProductPoints] = useState("");
-  const [productExpiry, setProductExpiry] = useState("");
+  // 유효기간 상태 제거
+  // const [productExpiry, setProductExpiry] = useState("");
   const [productQuantity, setProductQuantity] = useState("");
   const [productStock, setProductStock] = useState("");
 
@@ -190,7 +191,8 @@ const ProductManagement = () => {
     setProductName("");
     setProductCategory("");
     setProductPoints("");
-    setProductExpiry("");
+    // 유효기간 데이터 처리 로직 제거
+    // setProductExpiry("");
     setProductQuantity("");
     setProductStock("");
     setSelectedSidebarImage(null);
@@ -202,10 +204,12 @@ const ProductManagement = () => {
       setProductName(activeProduct.productName || "");
       setProductPoints(activeProduct.productPoints || "");
 
+      /* 유효기간 데이터 처리 로직 제거
       const formattedExpiry = activeProduct.expirationDate
         ? String(activeProduct.expirationDate).split("T")[0]
         : "";
       setProductExpiry(formattedExpiry);
+      */
 
       setProductQuantity(activeProduct.totalQuantity || "");
       setProductStock(activeProduct.stock || "");
@@ -282,7 +286,7 @@ const ProductManagement = () => {
       !productStock
     ) {
       showAlert(
-        "필수 항목(상품명, 포인트, 유효기간, 수량, 재고)을 모두 입력하세요.",
+        "필수 항목(상품명, 포인트, 수량, 재고)을 모두 입력하세요.",
         "warning",
       );
       return;
@@ -292,7 +296,7 @@ const ProductManagement = () => {
       const productData = {
         productName: productName,
         productPoints: parseInt(productPoints),
-        expirationDate: productExpiry, // YYYY-MM-DD 문자열 (백엔드 LocalDate와 매핑)
+        // expirationDate: productExpiry, // YYYY-MM-DD 문자열 (백엔드 LocalDate와 매핑)
         totalQuantity: parseInt(productQuantity),
         stock: parseInt(productStock),
       };
@@ -359,7 +363,7 @@ const ProductManagement = () => {
         "error",
       );
       setSelectedProducts([]);
-      resetSidebarState(); // ⭐️ 삭제 성공 후 상태 초기화
+      resetSidebarState(); // 삭제 성공 후 상태 초기화
     } catch (error) {
       console.error("상품 삭제 실패:", error);
       showAlert(
@@ -383,7 +387,8 @@ const ProductManagement = () => {
       const updatedProductData = {
         productName: productName,
         productPoints: parseInt(productPoints),
-        expirationDate: productExpiry,
+        // 유효기간 필드 제거
+        // expirationDate: productExpiry,
         totalQuantity: parseInt(productQuantity),
         stock: parseInt(productStock),
       };
@@ -544,7 +549,7 @@ const ProductManagement = () => {
                   포인트:{" "}
                   {new Intl.NumberFormat().format(product.productPoints)}P
                 </p>
-                <p>유효기간: {String(product.expirationDate).split("T")[0]}</p>
+                {/* <p>유효기간: {String(product.expirationDate).split("T")[0]}</p> */}
                 <p>
                   등록일자: {String(product.registrationDate).split("T")[0]}
                 </p>
@@ -623,7 +628,7 @@ const ProductManagement = () => {
                 <PointSuffix>P</PointSuffix>
               </div>
             </div>
-            <div>
+            {/* <div>
               <SidebarLabel htmlFor="product-expiry">유효기간:</SidebarLabel>
               <SidebarInput
                 id="product-expiry"
@@ -632,6 +637,24 @@ const ProductManagement = () => {
                 onChange={(e) => setProductExpiry(e.target.value)}
                 placeholder="YYYY-MM-DD"
               />
+            </div> */}
+            <div style={{ flex: 1 }}>
+              <SidebarLabel>유효기간:</SidebarLabel>
+              <div
+                style={{
+                  padding: "8px",
+                  border: "1px solid #e0e0e0",
+                  borderRadius: "4px",
+                  backgroundColor: "#f0f0f0",
+                  fontSize: "14px",
+                  color: "#333",
+                  height: "36px",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                교환일로부터 12개월
+              </div>
             </div>
           </InlineInputGroup>
 

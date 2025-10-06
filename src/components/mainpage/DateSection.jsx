@@ -1,4 +1,3 @@
-// DatePointSection.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import styled from "styled-components";
 import axios from "axios";
