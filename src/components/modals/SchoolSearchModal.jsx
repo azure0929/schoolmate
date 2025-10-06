@@ -128,6 +128,12 @@ const SearchInput = styled.input`
   border: 1px solid #ddd;
   border-radius: 8px 0 0 8px;
   outline: none;
+  font-size: 1rem;
+  color: #333; 
+
+  &::placeholder 
+    color: #999;
+  }
 
   &:focus {
     border-color: var(--primary-color);
