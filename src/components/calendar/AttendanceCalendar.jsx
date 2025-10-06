@@ -1,16 +1,8 @@
-// AttendanceCalendar.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import styled from "styled-components";
 import axios from "axios";
 import AttemdImg from "@/assets/images/attend.png";
-import {
-  FaChevronLeft,
-  FaChevronRight,
-  FaStar,
-  FaUser,
-  FaListAlt,
-  FaCalendarAlt,
-} from "react-icons/fa";
+import { FaChevronLeft, FaChevronRight, FaArrowLeft } from "react-icons/fa";
 
 const BASE_API_URL =
   import.meta.env.VITE_API_URL || "http://localhost:9000/api";
@@ -51,7 +43,7 @@ const getCalendarInfo = (year, month) => {
   return { firstDay, totalDays };
 };
 
-const AttendanceCalendar = () => {
+const AttendanceCalendar = ({ onGoBack }) => {
   // viewDate 상태: 사용자가 현재 보고 있는 달력의 년/월을 관리
   const [viewDate, setViewDate] = useState({
     year: CURRENT_YEAR,
@@ -133,6 +125,10 @@ const AttendanceCalendar = () => {
 
   return (
     <CalendarContainer>
+      <BackButton onClick={onGoBack}>
+        {" "}
+        <FaArrowLeft size={20} />
+      </BackButton>
       <CalendarSection>
         <SubHeader>
           <AttendanceInfo>
@@ -207,6 +203,25 @@ const CalendarContainer = styled.div`
   max-width: 1200px;
   margin: 186px auto 0;
   font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+`;
+
+const BackButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: #3f51b5;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 20px;
+  padding: 10px 0;
+  transition: opacity 0.2s;
+
+  &:hover {
+    opacity: 0.8;
+  }
 `;
 
 const CalendarSection = styled.div`
