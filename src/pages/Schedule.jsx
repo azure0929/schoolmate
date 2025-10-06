@@ -2,6 +2,7 @@ import React from "react";
 import styled from "styled-components";
 import MealSection from "@/components/mainpage/MealSection";
 import SchoolSchedule from "@/components/schedule/SchoolSchedule";
+import TopMenu from "@/components/mainpage/TopMenu";
 
 const AppContainer = styled.div`
   display: flex;
@@ -30,6 +31,7 @@ const Schedule = () => {
   return (
     <AppContainer>
       <ContentWrapper>
+      <TopMenu />
 
         <MealSection />
 

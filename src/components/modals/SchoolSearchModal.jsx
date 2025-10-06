@@ -52,7 +52,8 @@ const SchoolSearchModal = ({ isOpen, onClose, onSelect, schoolLevel }) => {
             placeholder="학교 이름을 입력하세요"
             onKeyPress={(e) => e.key === "Enter" && handleSearch()}
           />
-          <SearchButton onClick={handleSearch}>
+          {/* [핵심 수정] 버튼 타입을 명시하여 form 제출 방지 */}
+          <SearchButton type="button" onClick={handleSearch}>
             <MdSearch size={24} />
           </SearchButton>
         </SearchInputWrapper>
@@ -65,13 +66,18 @@ const SchoolSearchModal = ({ isOpen, onClose, onSelect, schoolLevel }) => {
               >
                 <strong>{school.SCHUL_NM}</strong>
                 <span>{school.ORG_RDNMA}</span>
+                {school.HS_SC_NM && (
+                  <span style={{ fontSize: "0.8rem", color: "#555" }}>
+                    {school.HS_SC_NM}
+                  </span>
+              )}
               </ResultItem>
             ))
           ) : (
             <NoResult>검색 결과가 없습니다.</NoResult>
           )}
         </ResultList>
-        <CloseButton onClick={onClose}>닫기</CloseButton>
+        <CloseButton type="button" onClick={onClose}>닫기</CloseButton>
       </ModalContainer>
     </ModalBackground>
   );
