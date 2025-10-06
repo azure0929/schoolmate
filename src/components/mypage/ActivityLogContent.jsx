@@ -77,30 +77,51 @@ const ActivityLogContent = () => {
         const exchangedDate = formatDate(item.exchangeDate);
         const usedDate = formatDate(item.usedDate);
 
-        const productExpirationDate = product.expirationDate
-          ? new Date(product.expirationDate)
-              .toLocaleDateString("ko-KR", {
-                year: "numeric",
-                month: "2-digit",
-                day: "2-digit",
-              })
-              .replace(/\s/g, "")
-              .slice(0, -1)
-          : "N/A";
+        let productExpirationDate = "N/A";
+        let expirationDateObject = null;
+
+        if (item.exchangeDate) {
+          expirationDateObject = new Date(item.exchangeDate);
+          // 교환일자에 12개월을 더한다.
+          expirationDateObject.setFullYear(
+            expirationDateObject.getFullYear() + 1,
+          );
+
+          // 한국 시간 포맷으로 YYYY.MM.DD 형식으로 변경
+          productExpirationDate = expirationDateObject
+            .toLocaleDateString("ko-KR", {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+            })
+            // "YYYY. MM. DD." 형태에서 공백을 제거하고 마지막 점 제거 -> "YYYY.MM.DD"
+            .replace(/\s/g, "")
+            .slice(0, -1);
+        }
 
         const productPoints = product.productPoints || 0;
         const productName = product.productName || "알 수 없는 상품";
         const imageUrl = product.imageUrl || null;
 
         let status = "unused";
+        const now = new Date();
+
+        // 상태 결정 로직 (유효기간 계산을 새롭게 적용)
         if (item.usedDate) {
           status = "used";
-        } else if (
-          product.expirationDate &&
-          new Date(product.expirationDate) <
-            new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-        ) {
-          status = "unused_imminent";
+        } else if (expirationDateObject && expirationDateObject < now) {
+          status = "unused";
+        } else if (expirationDateObject) {
+          // 7일(7 * 24 * 60 * 60 * 1000ms) 이내로 남았는지 확인
+          const sevenDaysInFuture = new Date(
+            now.getTime() + 7 * 24 * 60 * 60 * 1000,
+          );
+
+          if (expirationDateObject < sevenDaysInFuture) {
+            status = "unused_imminent"; // 미사용 (임박)
+          } else {
+            status = "unused"; // 미사용
+          }
         }
 
         return {
