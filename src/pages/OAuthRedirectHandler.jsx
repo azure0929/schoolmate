@@ -11,16 +11,20 @@ const OAuth2RedirectHandler = () => {
     // 백엔드에서 role 정보가 있다면 함께 파싱
     const role = searchParams.get("role"); // 백엔드에서 role을 함께 보낸다면 사용
     const tempToken = searchParams.get("tempToken"); // 임시 토큰 파싱
-    const nickname = searchParams.get("nickname");
-    const email = searchParams.get("email"); // 백엔드에서 email을 추가로 보냈을 경우
+    const nickname = searchParams.get("nickname"); // 파싱
+    const email = searchParams.get("email"); // 파싱
 
     // 1. 신규 회원: 임시 토큰(tempToken)이 있는지 최우선으로 확인
     if (tempToken) {
       console.log("소셜 계정 추가 정보 필요. 회원가입 페이지로 이동.");
-      // /signup 페이지로 임시 토큰, 닉네임, 이메일을 들고 이동
-      // (email은 백엔드 OAuth2SuccessHandler에서 추가했는지에 따라 선택적으로 사용)
-      const redirectPath = `/signup?tempToken=${tempToken}&nickname=${nickname}&email=${email || ""}`;
-      navigate(redirectPath, { replace: true });
+
+      // redirectPath 변수를 정확하게 정의.
+      const redirectPath = `/signup?tempToken=${tempToken}&nickname=${nickname || ""}&email=${email || ""}`;
+
+      // navigate 대신 window.location.replace를 사용하여 확실하게 이동.
+      window.location.replace(redirectPath);
+
+      return;
     }
     // 2. 기존 회원: 최종 JWT(token)이 있는지 확인
     else if (token) {
