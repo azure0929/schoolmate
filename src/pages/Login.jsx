@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { MdOutlineEmail, MdLockOutline } from "react-icons/md";
 import KakaoLogo from "@/assets/images/kakao.png";
@@ -101,18 +101,10 @@ const Login = () => {
     }
   };
 
-  // 카카오 인가 서버로 직접 요청하는 로직으로 변경
   const handleKakaoLogin = () => {
-    console.log("카카오 로그인 시도 (직접 인가 요청 URL 구성)...");
-
-    const kakaoAuthUrl =
-      `https://kauth.kakao.com/oauth/authorize?` +
-      `response_type=code&` +
-      `client_id=${KAKAO_CLIENT_ID}&` +
-      `scope=${KAKAO_SCOPE}&` +
-      `redirect_uri=${KAKAO_REDIRECT_URI}`;
-
-    window.location.href = kakaoAuthUrl;
+    const SPRING_SECURITY_KAKAO_START_URL =
+      "http://localhost:9000/oauth2/authorization/kakao";
+    window.location.href = SPRING_SECURITY_KAKAO_START_URL;
   };
 
   return (
