@@ -1,291 +1,120 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
-import styled, { css } from "styled-components";
-import { gsap } from "gsap";
+import React, { useState } from "react";
+import styled from "styled-components";
+import { useNavigate } from "react-router-dom";
+import api from "@/api";
+
+// 모든 하위 컴포넌트들을 import 합니다.
 import TopMenu from "@/components/mainpage/TopMenu";
-// 분리된 컴포넌트 임포트
-import ActivityLogContent from "@/components/mypage/ActivityLogContent";
-import EditInfoContent from "@/components/mypage/EditInfoContent";
+import ProfileContent from "@/components/mypage/ProfileContent"; 
+import ActivityLogContent from "@/components/mypage/ActivityLogContent"; // 실제 컴포넌트로 교체
+import ActionConfirmModal from "@/components/modals/ActionConfirmModal";
 
-// 백엔드 기본 URL 설정
-const BASE_URL = "http://localhost:9000/api";
-
-// --- Modal Component (로그아웃/탈퇴 모달) ---
-const Modal = ({ type, onClose }) => {
-  const modalRef = useRef(null);
-  const wrapperRef = useRef(null);
-
-  useEffect(() => {
-    gsap.to(wrapperRef.current, { opacity: 1, duration: 0.3 });
-    gsap.fromTo(
-      modalRef.current,
-      { scale: 0.9, opacity: 0 },
-      { scale: 1, opacity: 1, duration: 0.3, ease: "power2.out" },
-    );
-
-    const handleWrapperClick = (e) => {
-      if (e.target === wrapperRef.current) {
-        handleClose();
-      }
-    };
-    wrapperRef.current.addEventListener("click", handleWrapperClick);
-
-    return () => {
-      if (wrapperRef.current) {
-        wrapperRef.current.removeEventListener("click", handleWrapperClick);
-      }
-    };
-  }, []);
-
-  const handleClose = () => {
-    gsap.to(wrapperRef.current, { opacity: 0, duration: 0.2 });
-    gsap.to(modalRef.current, {
-      scale: 0.9,
-      opacity: 0,
-      duration: 0.2,
-      ease: "power2.in",
-      onComplete: onClose,
-    });
-  };
-
-  const handleConfirm = () => {
-    console.log(`${type} 실행`);
-    // 실제 로그아웃/탈퇴 로직 구현 필요
-    handleClose();
-  };
-
-  const isWithdrawal = type === "withdrawal";
-  const title = isWithdrawal ? "탈퇴 하시겠습니까?" : "로그아웃 하시겠습니까?";
-  const confirmText = "예";
-  const cancelText = "아니오";
-
-  return (
-    <ModalWrapper ref={wrapperRef} style={{ opacity: 0 }}>
-      <ModalContent ref={modalRef}>
-        <ModalText>{title}</ModalText>
-        <ModalActions>
-          <ConfirmButton $type={type} onClick={handleConfirm}>
-            {confirmText}
-          </ConfirmButton>
-          <CancelButton onClick={handleClose}>{cancelText}</CancelButton>
-        </ModalActions>
-      </ModalContent>
-    </ModalWrapper>
-  );
-};
-
-// --- MyPage Main Component ---
 const MyPage = () => {
-  const [activeTab, setActiveTab] = useState("activityLog");
-  const [modalType, setModalType] = useState(null);
-  const [studentName, setStudentName] = useState("사용자");
+  const [activeTab, setActiveTab] = useState("profile");
+  const [modalType, setModalType] = useState(null); // 'logout' 또는 'withdrawal'
+  const navigate = useNavigate();
 
-  // 학생 이름 불러오기 (환영 메시지용)
-  const fetchStudentName = useCallback(async () => {
-    // LocalStorage에서 토큰 가져오기
-    const authToken = localStorage.getItem("authToken");
-    const headers = {
-      Authorization: `Bearer ${authToken}`,
-      "Content-Type": "application/json",
-    };
+  // --- 실제 기능 구현 ---
+  const handleLogout = () => {
+    console.log("로그아웃 실행");
+    localStorage.removeItem("authToken"); // 로컬 스토리지에서 토큰 삭제
+    navigate("/"); // 로그인 페이지로 이동
+  };
 
-    if (!authToken) return;
-
+  const handleWithdrawal = async () => {
+    console.log("회원탈퇴 실행");
     try {
-      const res = await fetch(`${BASE_URL}/students/me`, { headers });
-      if (res.ok) {
-        const data = await res.json();
-        setStudentName(data.name || "사용자");
-      }
+      // 백엔드에 회원 탈퇴 API 요청
+      await api.delete("/students/me"); 
+      alert("회원 탈퇴가 완료되었습니다.");
+      localStorage.removeItem("authToken"); // 토큰 삭제
+      navigate("/"); // 로그인 페이지로 이동
     } catch (error) {
-      console.error("학생 이름 조회 실패:", error);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchStudentName();
-  }, [fetchStudentName]);
-
-  const handleTabClick = (tab) => {
-    if (tab === "withdrawal") {
-      setModalType("withdrawal");
-    } else if (tab === "logout") {
-      // 로그아웃 처리 시 로컬 스토리지에서 토큰 제거
-      localStorage.removeItem("authToken");
-      setModalType("logout");
-    } else {
-      setActiveTab(tab);
+      alert(error.response?.data?.message || "회원 탈퇴에 실패했습니다.");
     }
   };
-
-  const handleCloseModal = () => {
-    setModalType(null);
-  };
-
+  
+  // 선택된 탭에 따라 보여줄 컨텐츠를 결정하는 함수
   const renderContent = () => {
     switch (activeTab) {
-      // 분리된 컴포넌트 렌더링
+      case "profile":
+        return <ProfileContent 
+                  onLogoutClick={() => setModalType('logout')} 
+                  onWithdrawalClick={() => setModalType('withdrawal')}
+                  forceLogout={handleLogout}
+               />;
       case "activityLog":
-        return <ActivityLogContent />;
-      case "editInfo":
-        return <EditInfoContent />;
+        return <ActivityLogContent />; // 실제 활동 기록 컴포넌트 렌더링
       default:
-        return null;
+        return <ProfileContent />;
     }
   };
 
   return (
-    <MainPageWrap>
+    <PageWrapper>
       <TopMenu />
-      <WelcomeMessage>
-        <span>{studentName}</span>님 안녕하세요?
-      </WelcomeMessage>
-      <MyPageMain>
-        <TabMenu>
-          <TabItem
-            $active={activeTab === "activityLog"}
-            onClick={() => handleTabClick("activityLog")}
-          >
+      <Container>
+        <TabContainer>
+          <TabButton $isActive={activeTab === 'profile'} onClick={() => setActiveTab('profile')}>
+            프로필
+          </TabButton>
+          <TabButton $isActive={activeTab === 'activityLog'} onClick={() => setActiveTab('activityLog')}>
             활동 기록
-          </TabItem>
-          <TabItem
-            $active={activeTab === "editInfo"}
-            onClick={() => handleTabClick("editInfo")}
-          >
-            회원 정보 수정
-          </TabItem>
-          <TabItem onClick={() => handleTabClick("withdrawal")}>
-            회원탈퇴
-          </TabItem>
-          <TabItem onClick={() => handleTabClick("logout")}>로그아웃</TabItem>
-        </TabMenu>
+          </TabButton>
+        </TabContainer>
 
-        <ContentArea>{renderContent()}</ContentArea>
-      </MyPageMain>
-      {modalType && <Modal type={modalType} onClose={handleCloseModal} />}
-    </MainPageWrap>
+        <ContentArea>
+          {renderContent()}
+        </ContentArea>
+      </Container>
+      
+      {/* 로그아웃/회원탈퇴 모달 렌더링 */}
+      {modalType && (
+        <ActionConfirmModal 
+          type={modalType} 
+          onClose={() => setModalType(null)} 
+          onConfirm={modalType === 'logout' ? handleLogout : handleWithdrawal}
+        />
+      )}
+    </PageWrapper>
   );
 };
 
-// --- Styled Components (MyPage 전용) ---
+export default MyPage;
 
-const ModalWrapper = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-`;
-
-const ModalContent = styled.div`
-  width: 432px;
-  height: 246px;
-  border-radius: 30px;
-  background-color: white;
+// --- Styled Components ---
+const PageWrapper = styled.div`
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-`;
-
-const ModalText = styled.p`
-  flex-grow: 1;
-  display: flex;
-  justify-content: center;
   align-items: center;
-  font-size: 1.5rem;
-  font-weight: 500;
-  color: #333;
-  padding: 0 40px;
+  width: 100%;
 `;
 
-const ModalActions = styled.div`
-  display: flex;
-  height: 80px;
-  border-top: 1px solid #e0e0e0;
+const Container = styled.div`
+  width: 100%;
+  max-width: 1000px;
+  padding: 40px 20px;
 `;
 
-const ModalButtonBase = css`
-  flex: 1;
+const TabContainer = styled.div`
   display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 1.3rem;
-  font-weight: 700;
-  cursor: pointer;
+  gap: 24px;
+  border-bottom: 1px solid #ddd;
+`;
+
+const TabButton = styled.button`
   border: none;
-  transition: background-color 0.1s;
-`;
-
-const ConfirmButton = styled.button`
-  ${ModalButtonBase}
-  background-color: #333;
-  color: white;
-  border-right: 1px solid #e0e0e0;
-`;
-
-const CancelButton = styled.button`
-  ${ModalButtonBase}
-  background-color: #f0f0f0;
-  color: #333;
-`;
-
-const MainPageWrap = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 20px 80px;
-`;
-
-const WelcomeMessage = styled.h2`
-  width: 100%;
-  text-align: left;
-  font-size: 2rem;
-  font-weight: 500;
-  margin-top: 30px;
-  margin-bottom: 40px;
-`;
-
-const MyPageMain = styled.div`
-  width: 100%;
-`;
-
-const TabMenu = styled.div`
-  display: flex;
-  justify-content: flex-start;
-  margin-bottom: 50px;
-  gap: 15px;
-`;
-
-const TabItem = styled.span`
-  border-radius: 30px;
-  width: 146px;
-  height: 40px;
-  text-align: center;
-  line-height: 2.4rem;
+  background: none;
+  padding: 12px 4px;
+  font-size: 1.1rem;
+  font-weight: 600;
   cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s ease-in-out;
-
-  background-color: ${(props) => {
-    if (props.children === "회원탈퇴" || props.children === "로그아웃") {
-      return "#fff";
-    }
-    return props.$active ? "#ffe500" : "#f0f0f0";
-  }};
-
-  color: #333;
+  color: ${props => (props.$isActive ? 'var(--primary-color)' : '#888')};
+  border-bottom: 3px solid ${props => (props.$isActive ? 'var(--primary-color)' : 'transparent')};
+  transition: all 0.2s;
+  margin-bottom: -1px; // 하단 경계선과 겹치도록
 `;
 
 const ContentArea = styled.div`
-  width: 100%;
-  padding: 0 10px;
+  margin-top: 40px;
 `;
-
-export default MyPage;

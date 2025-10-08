@@ -60,6 +60,8 @@ const allergyData = [
 const SignUp = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const [selectedAllergies, setSelectedAllergies] = useState([]);
+    
 
     const [step, setStep] = useState(1);
     const [tempToken, setTempToken] = useState(null);
@@ -402,7 +404,7 @@ const SignUp = () => {
           <InputGroup>
             <InputWrapper>
               <Icon><FaRegUser /></Icon>
-              <Input type="text" name="name" placeholder="이름 (20자 이내, 숫자/특수문자 제외" value={formData.name} onChange={handleChange} />
+              <Input type="text" name="name" placeholder="이름 (20자 이내, 숫자/특수문자 제외)" value={formData.name} onChange={handleChange} />
             </InputWrapper>
             <ValidationMessage $status={validation.name.status}>
               {validation.name.message}
