@@ -1,11 +1,18 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
-import axios from "axios";
+import api from "@/api";
 import { MdSearch } from "react-icons/md";
 
 const SchoolSearchModal = ({ isOpen, onClose, onSelect, schoolLevel }) => {
   const [schoolName, setSchoolName] = useState("");
   const [results, setResults] = useState([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setSchoolName("");
+      setResults([]);
+    }
+  }, [isOpen]);
 
   // 검색 실행 함수
   const handleSearch = async () => {
@@ -18,14 +25,22 @@ const SchoolSearchModal = ({ isOpen, onClose, onSelect, schoolLevel }) => {
       return;
     }
     try {
-      // 백엔드의 학교 검색 API 호출
-      const response = await axios.get(
-        "http://localhost:9000/api/school-search",
-        {
-          params: { schoolName, schoolLevel },
-        },
+      setResults([]);
+      const response = await api.get(
+        "/school-search",
+        { params: { schoolName, schoolLevel } }
       );
-      setResults(response.data);
+
+      const processedResults = response.data.map(school => ({
+        ...school, // 원본 데이터는 그대로 유지하고,
+        // 사용하기 편한 새 이름들을 추가해줍니다.
+        schoolName: school.SCHUL_NM,
+        schoolCode: school.SD_SCHUL_CODE,
+        schoolType: school.HS_SC_NM, // '일반고' 등 학교 종류
+        locationName: school.LCTN_SC_NM, // '경기도' 등 지역
+      }));      
+      setResults(processedResults);
+
     } catch (error) {
       console.error("학교 검색 실패:", error);
       alert("학교 정보 조회 중 오류가 발생했습니다.");
@@ -52,7 +67,6 @@ const SchoolSearchModal = ({ isOpen, onClose, onSelect, schoolLevel }) => {
             placeholder="학교 이름을 입력하세요"
             onKeyPress={(e) => e.key === "Enter" && handleSearch()}
           />
-          {/* [핵심 수정] 버튼 타입을 명시하여 form 제출 방지 */}
           <SearchButton type="button" onClick={handleSearch}>
             <MdSearch size={24} />
           </SearchButton>
@@ -61,16 +75,14 @@ const SchoolSearchModal = ({ isOpen, onClose, onSelect, schoolLevel }) => {
           {results.length > 0 ? (
             results.map((school) => (
               <ResultItem
-                key={school.SD_SCHUL_CODE}
+                key={school.schoolCode}
                 onClick={() => handleSelect(school)}
               >
                 <strong>{school.SCHUL_NM}</strong>
-                <span>{school.ORG_RDNMA}</span>
-                {school.HS_SC_NM && (
-                  <span style={{ fontSize: "0.8rem", color: "#555" }}>
-                    {school.HS_SC_NM}
-                  </span>
-              )}
+                <span style={{ fontSize: "0.9rem", color: "#666", marginTop: '4px' }}>
+                  {school.schoolType && school.schoolType.trim() !== '' && `(${school.schoolType}) `}
+                  {school.locationName}
+                </span>
               </ResultItem>
             ))
           ) : (
