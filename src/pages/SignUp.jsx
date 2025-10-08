@@ -69,186 +69,25 @@ const allergyData = [
 ];
 
 const SignUp = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+    const navigate = useNavigate();
+    const location = useLocation();
+    const [selectedAllergies, setSelectedAllergies] = useState([]);
+    
 
-  const [step, setStep] = useState(1);
-  const [tempToken, setTempToken] = useState(null);
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    confirmPassword: "",
-    name: "",
-    nickname: "",
-    gender: "",
-    phone: "",
-    birthDay: "",
-    schoolInfo: {
-      level: "",
-      scCode: "",
-      schoolCode: "",
-      schoolName: "",
-      majorName: "",
-      grade: "",
-      classNo: "",
-    },
-    allergyId: [],
-  });
-
-  const [validation, setValidation] = useState({
-    email: { status: "unchecked", message: "" },
-    nickname: { status: "unchecked", message: "" },
-    phone: { status: "unchecked", message: "" },
-    password: { status: "unchecked", message: "" }, // 비밀번호 정책 검사 상태 추가
-    passwordMatch: { status: "unchecked", message: "" },
-    name: { status: "unchecked", message: "" },
-    nicknamePattern: { status: "unchecked", message: "" },
-  });
-
-  useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const token = searchParams.get("tempToken");
-    if (token) {
-      const email = searchParams.get("email");
-      const nickname = searchParams.get("nickname");
-
-      setTempToken(token);
-      setFormData((prev) => ({
-        ...prev,
-        email: email || "", // åå이메일 값 초기화
-        nickname: nickname || "", // 닉네임 값 초기화
-        password: "SOCIAL_USER_TEMP_PASSWORD",
-        confirmPassword: "SOCIAL_USER_TEMP_PASSWORD",
-      }));
-      setValidation((prev) => ({
-        ...prev,
-        email: { status: "valid", message: "소셜 계정 이메일입니다." },
-        password: { status: "valid", message: "" },
-        passwordMatch: { status: "valid", message: "" },
-      }));
-
-      window.history.replaceState(null, "", location.pathname);
-    }
-  }, [location.search, location.pathname, navigate]);
-
-  const isStep1NextDisabled = useMemo(() => {
-    const {
-      email,
-      password,
-      confirmPassword,
-      name,
-      nickname,
-      birthDay,
-      gender,
-      phone,
-    } = formData;
-    const requiredFieldsFilled =
-      email &&
-      password &&
-      confirmPassword &&
-      name &&
-      nickname &&
-      birthDay &&
-      gender &&
-      phone;
-
-    // [수정] '다음' 버튼 활성화 조건에 비밀번호 정책 유효성(validation.password.status) 추가
-    const checksPassed =
-      validation.email.status === "valid" &&
-      validation.nickname.status === "valid" &&
-      validation.phone.status === "valid" &&
-      validation.name.status !== "invalid" &&
-      validation.nicknamePattern.status !== "invalid" &&
-      (!!tempToken ||
-        (validation.password.status === "valid" &&
-          validation.passwordMatch.status === "valid"));
-
-    return !(requiredFieldsFilled && checksPassed);
-  }, [formData, validation, tempToken]);
-
-  const isStep2NextDisabled = useMemo(() => {
-    const { level, schoolName, majorName, grade, classNo } =
-      formData.schoolInfo;
-    const baseInfoFilled = schoolName && grade && classNo;
-    // 고등학교는 학과까지 필수
-    if (level === "고등학교") {
-      const majorListExists = majorName !== undefined; // SchoolSelector에서 학과목록을 가져왔는지 여부
-      return !(baseInfoFilled && (!majorListExists || majorName));
-    }
-    return !baseInfoFilled;
-  }, [formData.schoolInfo]);
-
-  const handleSchoolDataChange = useCallback((newSchoolInfo) => {
-    setFormData((prev) => ({
-      ...prev,
-      schoolInfo: newSchoolInfo,
-    }));
-  }, []);
-
-  // [핵심 수정 1] 전화번호 자동 하이픈 및 길이 제한 로직 복구
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    if (name === "phone") {
-      const cleaned = ("" + value).replace(/\D/g, "");
-      if (cleaned.length > 11) {
-        return;
-      }
-      let formatted = cleaned;
-      if (cleaned.length > 3 && cleaned.length <= 7) {
-        formatted = `${cleaned.slice(0, 3)}-${cleaned.slice(3)}`;
-      } else if (cleaned.length > 7) {
-        formatted = `${cleaned.slice(0, 3)}-${cleaned.slice(3, 7)}-${cleaned.slice(7)}`;
-      }
-      setFormData((prev) => ({ ...prev, phone: formatted }));
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
-    }
-
-    if (["email", "nickname", "phone"].includes(name)) {
-      setValidation((prev) => ({
-        ...prev,
-        [name]: { status: "unchecked", message: "" },
-      }));
-    }
-
-    // [수정] 강화된 비밀번호 유효성 검사 로직
-    if (name === "password") {
-      const hasLetter = /[a-zA-Z]/.test(value);
-      const hasNumber = /[0-9]/.test(value);
-      const hasSpecial = /[^a-zA-Z0-9]/.test(value);
-      const isValidLength = value.length >= 8;
-
-      let status = "invalid";
-      let message = "";
-
-      if (!isValidLength) {
-        message = "비밀번호는 최소 8자 이상이어야 합니다.";
-      } else if (!hasLetter || !hasNumber || !hasSpecial) {
-        // 어떤 조건이 누락되었는지 구체적으로 알려주는 메시지 생성
-        const missingParts = [];
-        if (!hasLetter) missingParts.push("영문");
-        if (!hasNumber) missingParts.push("숫자");
-        if (!hasSpecial) missingParts.push("특수문자");
-        message = `영문, 숫자, 특수문자를 모두 조합해야 합니다. (${missingParts.join(", ")} 누락)`;
-      } else {
-        status = "valid";
-        message = "안전한 비밀번호입니다!";
-      }
-      setValidation((prev) => ({ ...prev, password: { status, message } }));
-    }
-
-    if (name === "password" || name === "confirmPassword") {
-      const newPassword = name === "password" ? value : formData.password;
-      const newConfirmPassword =
-        name === "confirmPassword" ? value : formData.confirmPassword;
-      const isMatch =
-        newPassword && newConfirmPassword && newPassword === newConfirmPassword;
-      setValidation((prev) => ({
-        ...prev,
-        passwordMatch: {
-          status: isMatch ? "valid" : "invalid",
-          message: isMatch ? "" : "비밀번호가 일치하지 않습니다.",
+    const [step, setStep] = useState(1);
+    const [tempToken, setTempToken] = useState(null);
+    const [formData, setFormData] = useState({
+        email: "",
+        password: "",
+        confirmPassword: "",
+        name: "",
+        nickname: "",
+        gender: "",
+        phone: "",
+        birthDay: "",
+        schoolInfo: {
+            level: "", scCode: "", schoolCode: "",
+            schoolName: "", majorName: "", grade: "", classNo: "",
         },
       }));
     }
@@ -520,16 +359,8 @@ const SignUp = () => {
 
           <InputGroup>
             <InputWrapper>
-              <Icon>
-                <FaRegUser />
-              </Icon>
-              <Input
-                type="text"
-                name="name"
-                placeholder="이름 (20자 이내, 숫자/특수문자 제외"
-                value={formData.name}
-                onChange={handleChange}
-              />
+              <Icon><FaRegUser /></Icon>
+              <Input type="text" name="name" placeholder="이름 (20자 이내, 숫자/특수문자 제외)" value={formData.name} onChange={handleChange} />
             </InputWrapper>
             <ValidationMessage $status={validation.name.status}>
               {validation.name.message}
