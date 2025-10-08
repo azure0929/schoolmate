@@ -32,6 +32,11 @@ const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
   const [isAllergyModalOpen, setAllergyModalOpen] = useState(false);
   const fileInputRef = useRef(null);
 
+  const [nameStatus, setNameStatus] = useState({
+    valid: null,
+    message: "",
+  });
+
   // 닉네임 상태
   const [nicknameStatus, setNicknameStatus] = useState({
     valid: null, // true / false / null
@@ -57,6 +62,29 @@ const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setEditableProfile((prev) => ({ ...prev, [name]: value }));
+
+      // 이름 유효성 검사
+  if (name === "name") {
+    if (!value.trim()) {
+      setNameStatus({ valid: false, message: "이름을 입력해주세요." });
+      return;
+    }
+    if (value.length < 2 || value.length >= 20) {
+      setNameStatus({
+        valid: false,
+        message: "이름은 2글자 이상, 20글자 미만으로 입력해주세요.",
+      });
+      return;
+    }
+    if (/[^가-힣a-zA-Z]/.test(value)) {
+      setNameStatus({
+        valid: false,
+        message: "이름에는 특수문자나 숫자를 사용할 수 없습니다.",
+      });
+      return;
+    }
+    setNameStatus({ valid: true, message: "올바른 이름 형식입니다." });
+  }
   };
 
   // 닉네임 유효성 및 변경 핸들러
@@ -196,11 +224,19 @@ const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
 
         <SectionRow>
           <Label>이름</Label>
-          <Input
-            name="name"
-            value={editableProfile.name}
-            onChange={handleInputChange}
-          />
+          <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+            <Input
+              name="name"
+              value={editableProfile.name}
+              onChange={handleInputChange}
+              placeholder="이름 (2~19자, 한글/영문만 가능)"
+            />
+            {nameStatus.message && (
+              <ValidationMessage $isValid={nameStatus.valid}>
+                {nameStatus.message}
+              </ValidationMessage>
+            )}
+          </div>
         </SectionRow>
 
         <SectionRow>
@@ -250,7 +286,6 @@ const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
           </ActionButton>
         </SectionRow>
 
-        {/* ✅ 닉네임 중복확인 */}
         <SectionRow>
           <Label>닉네임</Label>
           <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
