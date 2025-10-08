@@ -8,7 +8,6 @@ import { useNavigate } from "react-router-dom";
 
 import MemberManagement from "@/components/admin/MemberManagement";
 import ProductManagement from "@/components/admin/ProductManagement";
-import StatisticsManagement from "@/components/admin/StatisticsManagement";
 
 const Sidebar = ({ activeTab, onTabChange, navigate }) => {
   const handleLogout = () => {
@@ -43,15 +42,6 @@ const Sidebar = ({ activeTab, onTabChange, navigate }) => {
           </span>
           상품 관리
         </TabButton>
-        <TabButton
-          onClick={() => onTabChange("statistics")}
-          $active={activeTab === "statistics"}
-        >
-          <span>
-            <BiSolidBarChartAlt2 />
-          </span>
-          통계 관리
-        </TabButton>
         <TabButton onClick={() => handleLogout()}>로그아웃</TabButton>
       </div>
     </SidebarContainer>
@@ -64,8 +54,6 @@ const renderContent = (activeTab) => {
       return <MemberManagement />;
     case "product":
       return <ProductManagement />;
-    case "statistics":
-      return <StatisticsManagement />;
     default:
       return <MemberManagement />;
   }

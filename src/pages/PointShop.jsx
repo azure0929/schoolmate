@@ -7,7 +7,8 @@ import ProductExchangeModal from "@/components/modals/ProductExchangeModal";
 import PaginationControls from "@/components/common/PaginationControls";
 
 const BASE_API_URL =
-  import.meta.env.REACT_APP_API_URL || "http://localhost:9000/api";
+  import.meta.env.REACT_APP_API_URL ||
+  "https://schoolmate-44907742353.us-south1.run.app";
 
 const api = axios.create({
   baseURL: BASE_API_URL,
