@@ -1,5 +1,4 @@
-import React, { useState } from "react";
-import Header from "@/components/common/Header";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { MdOutlineEmail, MdLockOutline } from "react-icons/md";
 import KakaoLogo from "@/assets/images/kakao.png";
@@ -11,8 +10,8 @@ const BASE_API_URL =
   import.meta.env.REACT_APP_API_URL || "http://localhost:9000/api";
 
 // 카카오 인가 요청을 위한 상수 추가
-// 실제 애플리케이션에서는 이 값을 환경 변수로 관리해야 합니다.
-const KAKAO_CLIENT_ID = "f71b4c3a397902b27c666e262e974e86";
+const KAKAO_CLIENT_ID =
+  import.meta.env.VITE_KAKAO_CLIENT_ID || "f71b4c3a397902b27c666e262e974e86";
 const KAKAO_REDIRECT_URI = "http://localhost:9000/login/oauth2/code/kakao";
 const KAKAO_SCOPE = "profile_nickname%20account_email";
 
@@ -102,18 +101,10 @@ const Login = () => {
     }
   };
 
-  // 카카오 인가 서버로 직접 요청하는 로직으로 변경
   const handleKakaoLogin = () => {
-    console.log("카카오 로그인 시도 (직접 인가 요청 URL 구성)...");
-
-    const kakaoAuthUrl =
-      `https://kauth.kakao.com/oauth/authorize?` +
-      `response_type=code&` +
-      `client_id=${KAKAO_CLIENT_ID}&` +
-      `scope=${KAKAO_SCOPE}&` +
-      `redirect_uri=${KAKAO_REDIRECT_URI}`;
-
-    window.location.href = kakaoAuthUrl;
+    const SPRING_SECURITY_KAKAO_START_URL =
+      "http://localhost:9000/oauth2/authorization/kakao";
+    window.location.href = SPRING_SECURITY_KAKAO_START_URL;
   };
 
   return (
@@ -130,7 +121,7 @@ const Login = () => {
         {/* 폼 제출 핸들러 연결 */}
         <FormCard>
           <FormTitle>로그인</FormTitle>
-           <LoginForm onSubmit={handleSubmit}>
+          <LoginForm onSubmit={handleSubmit}>
             <FormGroup>
               <Label htmlFor="email">이메일</Label>
               <InputGroup>
@@ -138,7 +129,7 @@ const Login = () => {
                   <MdOutlineEmail />
                 </Icon>
                 <StyledInput
-                  id="email" 
+                  id="email"
                   type="email"
                   placeholder="이메일 주소를 입력해주세요"
                   value={email}
@@ -161,22 +152,21 @@ const Login = () => {
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </InputGroup>
-
             </FormGroup>
-              <StyledButton type="submit" className="login">
-                로그인
-              </StyledButton>
-              <StyledButton
-                type="button"
-                className="kakao"
-                onClick={handleKakaoLogin}
-              >
-                <KakaoLogoImage src={KakaoLogo} alt="카카오 로고" />
-                카카오 로그인
-              </StyledButton>
+            <StyledButton type="submit" className="login">
+              로그인
+            </StyledButton>
+            <StyledButton
+              type="button"
+              className="kakao"
+              onClick={handleKakaoLogin}
+            >
+              <KakaoLogoImage src={KakaoLogo} alt="카카오 로고" />
+              카카오 로그인
+            </StyledButton>
           </LoginForm>
 
-        <LinkContainer onClick={handleSignUpClick}>회원가입</LinkContainer>
+          <LinkContainer onClick={handleSignUpClick}>회원가입</LinkContainer>
         </FormCard>
       </Contents>
     </LoginContainer>
@@ -210,7 +200,7 @@ const LoginContainer = styled.div`
   align-items: center;
   min-height: 100vh;
   width: 100%;
-  background: var(--gradient-hero); 
+  background: var(--gradient-hero);
 `;
 
 const Contents = styled.div`
@@ -288,9 +278,8 @@ const StyledInput = styled.input`
   font-size: 1rem;
   padding: 0;
   color: var(--text-color);
-  height : 46px;
+  height: 46px;
 `;
-
 
 const StyledButton = styled.button`
   width: 100%;
