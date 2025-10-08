@@ -7,17 +7,17 @@ import axios from "axios";
 
 // 환경 변수 안정화: 환경 변수가 로드되지 않을 경우 기본값 제공
 const BASE_API_URL =
-  import.meta.env.REACT_APP_API_URL || "http://localhost:9000/api";
+  import.meta.env.REACT_APP_API_URL || "http://localhost:9000";
 
 // 카카오 인가 요청을 위한 상수 추가
 const KAKAO_CLIENT_ID =
   import.meta.env.VITE_KAKAO_CLIENT_ID || "f71b4c3a397902b27c666e262e974e86";
-const KAKAO_REDIRECT_URI = "http://localhost:9000/login/oauth2/code/kakao";
+// const KAKAO_REDIRECT_URI = "http://localhost:9000/login/oauth2/code/kakao";
 const KAKAO_SCOPE = "profile_nickname%20account_email";
 
 // Axios 인스턴스 생성 및 기본 URL 설정
 const api = axios.create({
-  baseURL: BASE_API_URL,
+  baseURL: import.meta.env.MODE === "development" ? "/api" : BASE_API_URL,
   headers: {
     "Content-Type": "application/json",
   },
@@ -102,8 +102,7 @@ const Login = () => {
   };
 
   const handleKakaoLogin = () => {
-    const SPRING_SECURITY_KAKAO_START_URL =
-      "http://localhost:9000/oauth2/authorization/kakao";
+    const SPRING_SECURITY_KAKAO_START_URL = `${BASE_API_URL}/oauth2/authorization/kakao`;
     window.location.href = SPRING_SECURITY_KAKAO_START_URL;
   };
 
