@@ -1,12 +1,12 @@
 import axios from "axios";
 
 // 1. 기본 설정이 완료된 Axios 인스턴스 생성
+const BASE_API_URL =
+  import.meta.env.REACT_APP_API_URL ||
+  "https://schoolmate-44907742353.us-south1.run.app";
+
 const api = axios.create({
-<<<<<<< Updated upstream
-  baseURL: "http://localhost:9000/api", // 기본 서버 주소
-=======
   baseURL: import.meta.env.MODE === "development" ? "/api" : BASE_API_URL,
->>>>>>> Stashed changes
 });
 
 // 2. 요청 인터셉터
@@ -22,7 +22,7 @@ api.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api; // 설정이 끝난 'api' 객체를 다른 파일에서 쓸 수 있도록 내보내기
