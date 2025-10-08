@@ -7,7 +7,11 @@ import axios from "axios";
 
 // 환경 변수 안정화: 환경 변수가 로드되지 않을 경우 기본값 제공
 const BASE_API_URL =
+<<<<<<< Updated upstream
   import.meta.env.REACT_APP_API_URL || "http://localhost:9000/api";
+=======
+  import.meta.env.REACT_APP_API_URL || "http://localhost:9000";
+>>>>>>> Stashed changes
 
 // 카카오 인가 요청을 위한 상수 추가
 const KAKAO_CLIENT_ID =
@@ -17,7 +21,7 @@ const KAKAO_SCOPE = "profile_nickname%20account_email";
 
 // Axios 인스턴스 생성 및 기본 URL 설정
 const api = axios.create({
-  baseURL: BASE_API_URL,
+  baseURL: import.meta.env.MODE === "development" ? "/api" : BASE_API_URL,
   headers: {
     "Content-Type": "application/json",
   },
