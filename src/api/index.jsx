@@ -6,7 +6,7 @@ const BASE_API_URL =
   "https://schoolmate-44907742353.us-south1.run.app";
 
 const api = axios.create({
-  baseURL: BASE_API_URL, // 환경 변수 사용
+  baseURL: import.meta.env.MODE === "development" ? "/api" : BASE_API_URL,
 });
 
 // 2. 요청 인터셉터
