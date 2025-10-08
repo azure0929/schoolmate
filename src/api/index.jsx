@@ -1,12 +1,13 @@
 import axios from "axios";
 
 // 1. 기본 설정이 완료된 Axios 인스턴스 생성
-const BASE_API_URL =
-  import.meta.env.REACT_APP_API_URL ||
-  "https://schoolmate-44907742353.us-south1.run.app";
+const BASE_API_URL = import.meta.env.VITE_API_URL || "http://localhost:9000";
 
 const api = axios.create({
-  baseURL: import.meta.env.MODE === "development" ? "/api" : BASE_API_URL,
+  baseURL: BASE_API_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
 // 2. 요청 인터셉터
