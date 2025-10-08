@@ -42,16 +42,26 @@ const Login = () => {
 
     try {
       // 인스턴스 사용: 전체 URL 대신 상대 경로만 사용
-      const response = await api.post("/api/auth/login", { email, password });
+      const response = await api.post("api/auth/login", { email, password });
 
       // 토큰 추출 안정화 (소문자/대문자 헤더 모두 처리)
       const authHeader =
         response.headers.authorization || response.headers.Authorization;
-      let token = null;
+
+      let token = response.data.token;
+
       if (authHeader && authHeader.startsWith("Bearer ")) {
         token = authHeader.split(" ")[1];
       }
-      // ------------------------------------------
+
+      if (!token) {
+        // 응답 본문에 없다면, 기존처럼 헤더에서 추출 시도
+        const authHeader =
+          response.headers.authorization || response.headers.Authorization;
+        if (authHeader && authHeader.startsWith("Bearer ")) {
+          token = authHeader.split(" ")[1];
+        }
+      }
 
       if (token) {
         localStorage.setItem("authToken", token);

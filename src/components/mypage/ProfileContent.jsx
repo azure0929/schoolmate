@@ -146,7 +146,6 @@ const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
   // 학교 정보 변경
   const handleSchoolChange = (newSchoolData) => {
     setEditableProfile((prev) => ({ ...prev, ...newSchoolData }));
-    setProfile((prev) => ({ ...prev, ...newSchoolData }));
   };
 
   // 알레르기 변경
