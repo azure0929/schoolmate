@@ -8,7 +8,6 @@ const SchoolSelector = ({ schoolData, onSchoolChange }) => {
   const [majorList, setMajorList] = useState([]);
   const [classList, setClassList] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
   const [selectedSchool, setSelectedSchool] = useState(schoolData || {});
 
   useEffect(() => {
@@ -28,7 +27,7 @@ const SchoolSelector = ({ schoolData, onSchoolChange }) => {
     }
     const fetchMajors = async () => {
       try {
-        const res = await api.get("/school-search/majors", {
+        const res = await api.get("/api/school-search/majors", {
           params: {
             educationOfficeCode: schoolData.scCode,
             schoolCode: schoolData.schoolCode,
@@ -61,12 +60,10 @@ const SchoolSelector = ({ schoolData, onSchoolChange }) => {
         }
       }
       try {
-        const res = await api.get("/school-search/class-info", { params });
+        const res = await api.get("/api/school-search/class-info", { params });
 
-        // API 응답 데이터를 프론트엔드에서 사용하기 편한 이름으로 가공
         const processedClassList = res.data.map(cls => ({
-          ...cls, // 백엔드 원본 데이터는 그대로 유지하고,
-          // '반' 이름을 className 이라는 통일된 이름으로 추가해줍니다.
+          ...cls, 
           className: cls.className || cls.CLASS_NM 
         }));
         setClassList(processedClassList);
@@ -74,7 +71,13 @@ const SchoolSelector = ({ schoolData, onSchoolChange }) => {
       } catch (error) { console.error("반 정보 조회 실패:", error); }
     };
     fetchClasses();
-  }, [schoolData]);
+    }, [
+        schoolData.scCode, 
+        schoolData.schoolCode, 
+        schoolData.grade, 
+        schoolData.majorName, 
+        schoolData.level
+    ]); 
 
   const handleSchoolSelect = (school) => {
     const updated = {
@@ -96,7 +99,7 @@ const SchoolSelector = ({ schoolData, onSchoolChange }) => {
     const { name, value } = e.target;
     const updatedData = { ...schoolData, [name]: value };
     if (name === 'grade') {
-        updatedData.classNo = ""; // 학년이 바뀌면 반 초기화
+        updatedData.classNo = ""; 
     }
     onSchoolChange(updatedData);
   };

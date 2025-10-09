@@ -75,7 +75,7 @@ const PasswordChangeModal = ({ onClose, onSuccess }) => {
   const handleSubmit = async () => {
     try {
       // axios 응답을 변수로 받아야 함
-      const response = await api.put("/students/password", {
+      const response = await api.put("/api/students/password", {
         currentPassword: passwords.currentPassword,
         newPassword: passwords.newPassword,
       });
