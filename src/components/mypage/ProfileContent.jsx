@@ -5,24 +5,6 @@ import dayjs from "dayjs";
 import AllergySelector from "@/components/mypage/AllergySelector";
 import SchoolSelector from "@/components/common/SchoolSelector";
 import PasswordChangeModal from "@/components/modals/PasswordChangeModal";
-import ActionConfirmModal from "@/components/modals/ActionConfirmModal";
-
-// 실시간 유효성 검사 메시지
-const ValidationMessage = styled.p`
-  font-size: 0.9rem;
-  margin-top: 6px;
-  color: ${({ $isValid }) => ($isValid ? "green" : "red")};
-`;
-
-// 공용 모달 컴포넌트
-const Modal = ({ children, onClose, title }) => (
-  <Overlay onClick={onClose}>
-    <ModalContainer onClick={(e) => e.stopPropagation()}>
-      <ModalTitle>{title}</ModalTitle>
-      {children}
-    </ModalContainer>
-  </Overlay>
-);
 
 const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
   const [profile, setProfile] = useState(null);
@@ -30,14 +12,13 @@ const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
   const [isPasswordModalOpen, setPasswordModalOpen] = useState(false);
   const [isSchoolModalOpen, setSchoolModalOpen] = useState(false);
   const [isAllergyModalOpen, setAllergyModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false); // 저장 중 상태
   const fileInputRef = useRef(null);
 
   const [nameStatus, setNameStatus] = useState({
     valid: null,
     message: "",
   });
-
-  // 닉네임 상태
   const [nicknameStatus, setNicknameStatus] = useState({
     valid: null, // true / false / null
     message: "",
@@ -49,6 +30,8 @@ const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
       const res = await api.get("/profile/me");
       setProfile(res.data);
       setEditableProfile(res.data);
+      // 닉네임 상태 초기화 (현재 닉네임과 동일하므로 유효함)
+      setNicknameStatus({ valid: true, message: "" });
     } catch (error) {
       console.error("프로필 정보 조회 실패:", error);
     }
@@ -63,28 +46,29 @@ const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
     const { name, value } = e.target;
     setEditableProfile((prev) => ({ ...prev, [name]: value }));
 
+    // 이름 유효성 검사
+    if (name === "name") {
       // 이름 유효성 검사
-  if (name === "name") {
-    if (!value.trim()) {
-      setNameStatus({ valid: false, message: "이름을 입력해주세요." });
-      return;
+      if (!value.trim()) {
+        setNameStatus({ valid: false, message: "이름을 입력해주세요." });
+        return;
+      }
+      if (value.length < 2 || value.length >= 20) {
+        setNameStatus({
+          valid: false,
+          message: "이름은 2글자 이상, 20글자 미만으로 입력해주세요.",
+        });
+        return;
+      }
+      if (/[^가-힣a-zA-Z]/.test(value)) {
+        setNameStatus({
+          valid: false,
+          message: "이름에는 특수문자나 숫자를 사용할 수 없습니다.",
+        });
+        return;
+      }
+      setNameStatus({ valid: true, message: "올바른 이름 형식입니다." });
     }
-    if (value.length < 2 || value.length >= 20) {
-      setNameStatus({
-        valid: false,
-        message: "이름은 2글자 이상, 20글자 미만으로 입력해주세요.",
-      });
-      return;
-    }
-    if (/[^가-힣a-zA-Z]/.test(value)) {
-      setNameStatus({
-        valid: false,
-        message: "이름에는 특수문자나 숫자를 사용할 수 없습니다.",
-      });
-      return;
-    }
-    setNameStatus({ valid: true, message: "올바른 이름 형식입니다." });
-  }
   };
 
   // 닉네임 유효성 및 변경 핸들러
@@ -92,7 +76,7 @@ const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
     const nickname = e.target.value;
     setEditableProfile((prev) => ({ ...prev, nickname }));
 
-    // 입력 제약 조건
+    // 닉네임 유효성 검사 로직
     if (!nickname.trim()) {
       setNicknameStatus({ valid: false, message: "닉네임을 입력해주세요." });
       return;
@@ -112,8 +96,13 @@ const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
       return;
     }
 
-    // 입력만 했을 때는 아직 중복확인 안함
-    setNicknameStatus({ valid: null, message: "중복확인을 해주세요." });
+    // 닉네임이 이전 값과 다르면 중복확인 필요 상태로 변경
+    if (nickname !== profile.nickname) {
+      setNicknameStatus({ valid: null, message: "중복확인을 해주세요." });
+    } else {
+      // 원래 닉네임으로 되돌아오면 유효 상태로 변경
+      setNicknameStatus({ valid: true, message: "" });
+    }
   };
 
   // 닉네임 중복확인 API
@@ -124,22 +113,116 @@ const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
       return;
     }
 
+    // 현재 닉네임과 같으면 중복확인 생략
+    if (nickname === profile.nickname) {
+      setNicknameStatus({ valid: true, message: "" });
+      alert("현재 닉네임과 동일합니다.");
+      return;
+    }
+
     try {
       const res = await api.get("/auth/check-nickname", {
         params: { nickname },
       });
       if (res.status === 200) {
-        setNicknameStatus({ valid: true, message: "사용 가능한 닉네임입니다." });
+        setNicknameStatus({
+          valid: true,
+          message: "사용 가능한 닉네임입니다.",
+        });
       }
     } catch (error) {
       if (error.response?.status === 409) {
-        setNicknameStatus({ valid: false, message: "이미 사용 중인 닉네임입니다." });
+        setNicknameStatus({
+          valid: false,
+          message: "이미 사용 중인 닉네임입니다.",
+        });
       } else {
         setNicknameStatus({
           valid: false,
           message: "닉네임 중복확인 중 오류가 발생했습니다.",
         });
       }
+    }
+  };
+
+  // 프로필 이미지 파일 업로드 핸들러
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("이미지 파일만 선택 가능합니다.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file); // 백엔드에서 'file' 이름으로 받도록 가정
+
+    setIsSaving(true);
+    try {
+      // 1. 백엔드의 이미지 업로드 API 호출 (Firebase Storage 저장 및 URL 반환)
+      const res = await api.post("/profile/upload-image", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      const newImageUrl = res.data.profileImgUrl || res.data.url; // 응답 구조에 따라 키 조정
+
+      if (newImageUrl) {
+        // 2. editableProfile에 새 URL 저장
+        setEditableProfile((prev) => ({
+          ...prev,
+          profileImgUrl: newImageUrl,
+        }));
+        alert(
+          "이미지가 성공적으로 업로드되었습니다. '저장하기'를 눌러 반영하세요.",
+        );
+      } else {
+        throw new Error("서버에서 이미지 URL을 받지 못했습니다.");
+      }
+    } catch (error) {
+      console.error("이미지 업로드 실패:", error);
+      alert(error.response?.data?.message || "이미지 업로드에 실패했습니다.");
+    } finally {
+      setIsSaving(false);
+      // 파일 입력 필드 초기화 (같은 파일을 다시 선택할 수 있도록)
+      e.target.value = null;
+    }
+  };
+
+  // 프로필 이미지 삭제 핸들러
+  const handleImageDelete = async () => {
+    if (!window.confirm("현재 프로필 이미지를 삭제하시겠습니까?")) return;
+
+    setIsSaving(true);
+    try {
+      // 1. 프로필 이미지 URL을 빈 문자열 또는 기본값으로 설정
+      const defaultImgUrl = "/default-profile.png";
+
+      // 3. 백엔드에 이미지 URL 삭제 요청 (DB 필드를 null로 설정)
+      // DELETE /api/profile/delete-image 호출
+      await api.delete("/profile/delete-image");
+
+      // 4. 요청 성공 시 editableProfile과 profile 상태를 즉시 업데이트
+      // DB가 null로 설정되었으므로, 클라이언트 상태도 null로 변경
+      setEditableProfile((prev) => ({
+        ...prev,
+        profileImgUrl: null, // 서버에서 null 처리 완료
+      }));
+
+      // profile 상태도 업데이트 (재조회하지 않고)
+      setProfile((prev) => ({
+        ...prev,
+        profileImgUrl: null,
+      }));
+
+      alert("프로필 이미지가 성공적으로 삭제되었습니다.");
+    } catch (error) {
+      console.error("이미지 삭제 준비 실패:", error);
+      alert("이미지 삭제 준비 중 오류가 발생했습니다.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -156,9 +239,9 @@ const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
     setEditableProfile((prev) => ({ ...prev, allergyId: allergies }));
   };
 
-  // 저장하기
+  // 최종 저장하기
   const handleSave = async () => {
-    // 닉네임이 변경되었는데 중복확인 안한 경우 방지
+    // 닉네임 중복확인 검사
     if (
       editableProfile.nickname !== profile.nickname &&
       nicknameStatus.valid !== true
@@ -167,17 +250,31 @@ const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
       return;
     }
 
+    // 이름 유효성 검사 (저장 시 최종 확인)
+    if (nameStatus.valid === false) {
+      alert("이름 형식이 올바르지 않습니다.");
+      return;
+    }
+
+    // 변경된 내용 확인 (profileImgUrl 비교도 포함됨)
     if (JSON.stringify(profile) === JSON.stringify(editableProfile)) {
       alert("변경된 내용이 없습니다.");
       return;
     }
 
+    setIsSaving(true);
     try {
+      // 1. 프로필 정보 수정 API 호출 (변경된 profileImgUrl 포함)
       await api.put("/profile/me", editableProfile);
+
       alert("정보가 성공적으로 수정되었습니다.");
-      fetchProfile();
+
+      // 2. 성공 후 프로필 정보 재조회 및 UI 업데이트
+      await fetchProfile();
     } catch (error) {
       alert(error.response?.data?.message || "정보 수정에 실패했습니다.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -190,24 +287,36 @@ const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
       {/* 프로필 이미지 */}
       <ProfileImageSection>
         <ImageCircle
-          src={profile.profileImgUrl || "/default-profile.png"}
+          src={editableProfile.profileImgUrl || "/default-profile.png"}
           alt="프로필 이미지"
         />
         <ImageButtonWrapper>
-          <ImageButton onClick={() => fileInputRef.current.click()}>
+          <ImageButton
+            onClick={() => fileInputRef.current.click()}
+            disabled={isSaving}
+          >
             파일 찾기
           </ImageButton>
+          {/* 파일 입력 필드에 onChange 이벤트 연결 */}
           <input
             type="file"
             ref={fileInputRef}
             style={{ display: "none" }}
             accept="image/*"
+            onChange={handleImageUpload}
+            disabled={isSaving}
           />
-          <ImageButton variant="delete">프로필 삭제</ImageButton>
+          <ImageButton
+            variant="delete"
+            onClick={handleImageDelete}
+            disabled={isSaving}
+          >
+            프로필 삭제
+          </ImageButton>
         </ImageButtonWrapper>
       </ProfileImageSection>
 
-      {/* 정보 수정 폼 */}
+      {/* 정보 수정 폼 (기존 로직 유지) */}
       <FormSection>
         <SectionRow>
           <Label>이메일</Label>
@@ -295,7 +404,9 @@ const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
                 onChange={handleNicknameChange}
                 placeholder="닉네임 (2~10자, 특수문자 불가)"
               />
-              <ActionButton onClick={handleCheckNickname}>중복확인</ActionButton>
+              <ActionButton onClick={handleCheckNickname}>
+                중복확인
+              </ActionButton>
             </div>
             {nicknameStatus.message && (
               <ValidationMessage $isValid={nicknameStatus.valid}>
@@ -318,7 +429,9 @@ const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
         </SectionRow>
       </FormSection>
 
-      <SaveButton onClick={handleSave}>저장하기</SaveButton>
+      <SaveButton onClick={handleSave} disabled={isSaving}>
+        {isSaving ? "저장 중..." : "저장하기"}
+      </SaveButton>
 
       <Separator />
 
@@ -327,7 +440,7 @@ const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
         <EtcButton onClick={onWithdrawalClick}>회원탈퇴</EtcButton>
       </EtcButtonWrapper>
 
-      {/* 비밀번호 변경 모달 */}
+      {/* 모달 섹션 (기존 로직 유지) */}
       {isPasswordModalOpen && (
         <PasswordChangeModal
           onClose={() => setPasswordModalOpen(false)}
@@ -339,20 +452,23 @@ const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
         />
       )}
 
-      {/* 학교 변경 모달 */}
       {isSchoolModalOpen && (
         <Modal onClose={() => setSchoolModalOpen(false)} title="학교 정보 변경">
           <SchoolSelector
             schoolData={editableProfile}
             onSchoolChange={handleSchoolChange}
           />
-          <ModalButton onClick={() => setSchoolModalOpen(false)}>확인</ModalButton>
+          <ModalButton onClick={() => setSchoolModalOpen(false)}>
+            확인
+          </ModalButton>
         </Modal>
       )}
 
-      {/* 알레르기 변경 모달 */}
       {isAllergyModalOpen && (
-        <Modal onClose={() => setAllergyModalOpen(false)} title="알레르기 정보 변경">
+        <Modal
+          onClose={() => setAllergyModalOpen(false)}
+          title="알레르기 정보 변경"
+        >
           <AllergySelector
             selectedAllergies={editableProfile.allergyId || []}
             onAllergyChange={handleAllergyChange}
@@ -368,9 +484,50 @@ const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
 
 export default ProfileContent;
 
-/* ----------------------------- */
-/* Styled Components              */
-/* ----------------------------- */
+const ValidationMessage = styled.p`
+  font-size: 0.9rem;
+  margin-top: 6px;
+  color: ${({ $isValid }) => ($isValid ? "green" : "red")};
+`;
+
+const Overlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+`;
+const ModalContainer = styled.div`
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+`;
+const ModalTitle = styled.h3`
+  font-size: 1.5rem;
+  margin: 0 0 24px 0;
+  text-align: center;
+`;
+const ModalButton = styled.button`
+  width: 100%;
+  padding: 16px;
+  margin-top: 24px;
+  border: none;
+  border-radius: 8px;
+  background-color: var(--primary-color);
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+`;
 const Container = styled.div`
   width: 100%;
   max-width: 800px;
@@ -415,6 +572,10 @@ const ImageButton = styled.button`
     background-color: var(--primary-color);
     color: white;
     border-color: var(--primary-color);
+  }
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 `;
 const FormSection = styled.div`
@@ -483,6 +644,10 @@ const SaveButton = styled.button`
   font-size: 1.1rem;
   font-weight: 600;
   cursor: pointer;
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 `;
 const Separator = styled.hr`
   border: none;
@@ -490,11 +655,10 @@ const Separator = styled.hr`
   margin: 32px 0;
 `;
 const EtcButtonWrapper = styled.div`
-    display: flex;
-    justify-content: center; 
-    gap: 10px;
-    flex-direction: column;
-     
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-direction: column;
 `;
 const EtcButton = styled.button`
   font-size: 1rem;
@@ -506,33 +670,4 @@ const EtcButton = styled.button`
     color: var(--primary-color);
     text-decoration: underline;
   }
-`;
-const Overlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-`;
-const ModalContainer = styled.div`
-  background: white;
-  padding: 24px;
-  border-radius: 12px;
-  width: 90%;
-  max-width: 600px;
-  max-height: 80vh;
-  overflow-y: auto;
-`;
-const ModalTitle = styled.h3`
-  font-size: 1.5rem;
-  margin: 0 0 24px 0;
-  text-align: center;
-`;
-const ModalButton = styled(SaveButton)`
-  margin-top: 24px;
 `;
