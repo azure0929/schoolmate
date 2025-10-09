@@ -2,28 +2,9 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
 import TopMenu from "@/components/mainpage/TopMenu";
 import { MdSearch } from "react-icons/md";
-import axios from "axios";
 import ProductExchangeModal from "@/components/modals/ProductExchangeModal";
 import PaginationControls from "@/components/common/PaginationControls";
-
-const BASE_API_URL = import.meta.env.VITE_API_URL || "http://localhost:9000";
-
-const api = axios.create({
-  baseURL: BASE_API_URL,
-});
-
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("authToken");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  },
-);
+import api from "@/api/index";
 
 // 배열을 무작위로 섞는 함수 (Fisher-Yates 셔플)
 const shuffleArray = (array) => {
