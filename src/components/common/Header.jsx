@@ -70,7 +70,7 @@ const Header = () => {
               {/* 프로필 이미지 + 마이페이지 링크 */}
               <MyPageLink to="/mypage">
                 <ProfileImage
-                  src={userInfo.profileImgUrl || defaultProfile}
+                  src={userInfo.profileImgUrl}
                   alt="프로필 이미지"
                 />
                 <MyPageText>마이페이지</MyPageText>

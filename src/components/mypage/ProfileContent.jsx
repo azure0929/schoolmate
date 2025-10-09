@@ -185,7 +185,7 @@ const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
     setIsSaving(true);
     try {
       // 1. 백엔드의 이미지 업로드 API 호출 (Firebase Storage 저장 및 URL 반환)
-      const res = await api.post("/profile/upload-image", formData, {
+      const res = await api.post("/api/profile/upload-image", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
@@ -226,7 +226,7 @@ const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
 
       // 3. 백엔드에 이미지 URL 삭제 요청 (DB 필드를 null로 설정)
       // DELETE /api/profile/delete-image 호출
-      await api.delete("/profile/delete-image");
+      await api.delete("/api/profile/delete-image");
 
       // 4. 요청 성공 시 editableProfile과 profile 상태를 즉시 업데이트
       // DB가 null로 설정되었으므로, 클라이언트 상태도 null로 변경
