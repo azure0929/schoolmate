@@ -26,21 +26,19 @@ const SchoolSearchModal = ({ isOpen, onClose, onSelect, schoolLevel }) => {
     }
     try {
       setResults([]);
-      const response = await api.get(
-        "/school-search",
-        { params: { schoolName, schoolLevel } }
-      );
+      const response = await api.get("/school-search", {
+        params: { schoolName, schoolLevel },
+      });
 
-      const processedResults = response.data.map(school => ({
+      const processedResults = response.data.map((school) => ({
         ...school, // 원본 데이터는 그대로 유지하고,
         // 사용하기 편한 새 이름들을 추가해줍니다.
         schoolName: school.SCHUL_NM,
         schoolCode: school.SD_SCHUL_CODE,
         schoolType: school.HS_SC_NM, // '일반고' 등 학교 종류
         locationName: school.LCTN_SC_NM, // '경기도' 등 지역
-      }));      
+      }));
       setResults(processedResults);
-
     } catch (error) {
       console.error("학교 검색 실패:", error);
       alert("학교 정보 조회 중 오류가 발생했습니다.");
@@ -79,8 +77,16 @@ const SchoolSearchModal = ({ isOpen, onClose, onSelect, schoolLevel }) => {
                 onClick={() => handleSelect(school)}
               >
                 <strong>{school.SCHUL_NM}</strong>
-                <span style={{ fontSize: "0.9rem", color: "#666", marginTop: '4px' }}>
-                  {school.schoolType && school.schoolType.trim() !== '' && `(${school.schoolType}) `}
+                <span
+                  style={{
+                    fontSize: "0.9rem",
+                    color: "#666",
+                    marginTop: "4px",
+                  }}
+                >
+                  {school.schoolType &&
+                    school.schoolType.trim() !== "" &&
+                    `(${school.schoolType}) `}
                   {school.locationName}
                 </span>
               </ResultItem>
@@ -89,7 +95,9 @@ const SchoolSearchModal = ({ isOpen, onClose, onSelect, schoolLevel }) => {
             <NoResult>검색 결과가 없습니다.</NoResult>
           )}
         </ResultList>
-        <CloseButton type="button" onClick={onClose}>닫기</CloseButton>
+        <CloseButton type="button" onClick={onClose}>
+          닫기
+        </CloseButton>
       </ModalContainer>
     </ModalBackground>
   );
@@ -141,9 +149,9 @@ const SearchInput = styled.input`
   border-radius: 8px 0 0 8px;
   outline: none;
   font-size: 1rem;
-  color: #333; 
+  color: #333;
 
-  &::placeholder 
+  &::placeholder {
     color: #999;
   }
 
