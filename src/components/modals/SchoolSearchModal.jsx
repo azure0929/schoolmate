@@ -26,7 +26,7 @@ const SchoolSearchModal = ({ isOpen, onClose, onSelect, schoolLevel }) => {
     }
     try {
       setResults([]);
-      const response = await api.get("/school-search", {
+      const response = await api.get("/api/school-search", {
         params: { schoolName, schoolLevel },
       });
 

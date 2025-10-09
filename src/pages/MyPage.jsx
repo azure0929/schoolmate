@@ -25,7 +25,7 @@ const MyPage = () => {
     console.log("회원탈퇴 실행");
     try {
       // 백엔드에 회원 탈퇴 API 요청
-      await api.delete("/students/me"); 
+      await api.delete("api/students/me"); 
       alert("회원 탈퇴가 완료되었습니다.");
       localStorage.removeItem("authToken"); // 토큰 삭제
       navigate("/"); // 로그인 페이지로 이동

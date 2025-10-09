@@ -6,6 +6,22 @@ import AllergySelector from "@/components/mypage/AllergySelector";
 import SchoolSelector from "@/components/common/SchoolSelector";
 import PasswordChangeModal from "@/components/modals/PasswordChangeModal";
 
+const ModalOverlay = styled.div`
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; z-index: 1000;
+`;
+
+const Modal = ({ children, title, onClose }) => {
+  return (
+    <ModalOverlay onClick={onClose}>
+      <ModalContainer onClick={(e) => e.stopPropagation()}>
+        <ModalTitle>{title}</ModalTitle>
+        {children}
+      </ModalContainer>
+    </ModalOverlay>
+  );
+};
+
 const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
   const [profile, setProfile] = useState(null);
   const [editableProfile, setEditableProfile] = useState(null);
@@ -27,7 +43,7 @@ const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
   // 프로필 데이터 불러오기
   const fetchProfile = useCallback(async () => {
     try {
-      const res = await api.get("/profile/me");
+      const res = await api.get("/api/profile/me");
       setProfile(res.data);
       setEditableProfile(res.data);
       // 닉네임 상태 초기화 (현재 닉네임과 동일하므로 유효함)
@@ -121,7 +137,7 @@ const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
     }
 
     try {
-      const res = await api.get("/auth/check-nickname", {
+      const res = await api.get("/api/auth/check-nickname", {
         params: { nickname },
       });
       if (res.status === 200) {
@@ -265,7 +281,7 @@ const ProfileContent = ({ onLogoutClick, onWithdrawalClick, forceLogout }) => {
     setIsSaving(true);
     try {
       // 1. 프로필 정보 수정 API 호출 (변경된 profileImgUrl 포함)
-      await api.put("/profile/me", editableProfile);
+      await api.put("/api/profile/me", editableProfile);
 
       alert("정보가 성공적으로 수정되었습니다.");
 

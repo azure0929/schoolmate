@@ -17,7 +17,7 @@ const SchoolTimetable = () => {
   const fetchAndProcessTimetable = useCallback(async (date) => {
     setIsLoading(true); // 로딩 시작
     try {
-      const response = await api.get("/school/timetable", {
+      const response = await api.get("/api/school/timetable", {
         params: { date: dayjs(date).format('YYYY-MM-DD') }
       });
       
