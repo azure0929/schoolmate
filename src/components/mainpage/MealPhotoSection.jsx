@@ -11,7 +11,7 @@ import "swiper/css/pagination";
 import "swiper/css/grid";
 
 const BASE_API_URL =
-  import.meta.env.REACT_APP_API_URL || "http://localhost:9000/api";
+  import.meta.env.REACT_APP_API_URL || "http://localhost:9000";
 
 function MealPhotoSection() {
   const navigate = useNavigate();
@@ -33,7 +33,7 @@ function MealPhotoSection() {
 
     try {
       const response = await axios.get(
-        `${BASE_API_URL}/v1/photos/allStudentsPhotos`,
+        `${BASE_API_URL}/api/v1/photos/allStudentsPhotos`,
         {
           headers: {
             ...(authToken && { Authorization: `Bearer ${authToken}` }),
@@ -64,7 +64,7 @@ function MealPhotoSection() {
     }
 
     try {
-      const response = await axios.get(`${BASE_API_URL}/profile/me`, {
+      const response = await axios.get(`${BASE_API_URL}/api/profile/me`, {
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
@@ -90,7 +90,7 @@ function MealPhotoSection() {
     formData.append("file", file);
 
     const response = await axios.post(
-      `${BASE_API_URL}/v1/photos/upload`,
+      `${BASE_API_URL}/api/v1/photos/upload`,
       formData,
       {
         headers: {

@@ -11,27 +11,7 @@ import { FiUpload } from "react-icons/fi";
 import { BiSearch } from "react-icons/bi";
 import { FaChevronRight } from "react-icons/fa6";
 import PaginationControls from "@/components/common/PaginationControls";
-import axios from "axios";
-
-const BASE_API_URL =
-  import.meta.env.REACT_APP_API_URL || "http://localhost:9000/api";
-
-const api = axios.create({
-  baseURL: BASE_API_URL,
-});
-
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("authToken");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  },
-);
+import api from "@/api/index";
 
 // 사용자 정의 Alert Hook 및 컴포넌트는 그대로 유지
 const useAlert = () => {
@@ -167,7 +147,7 @@ const ProductManagement = () => {
   // 상품 목록 조회
   const fetchProducts = useCallback(async () => {
     try {
-      const response = await api.get("/products");
+      const response = await api.get("/api/products");
       const items = response.data;
       setProductItems(items);
     } catch (error) {
@@ -345,7 +325,7 @@ const ProductManagement = () => {
         formData.append("file", selectedImageFile);
       }
 
-      await api.post("/products", formData, {
+      await api.post("/api/products", formData, {
         headers: {
           "Content-Type": undefined,
         },
@@ -382,7 +362,7 @@ const ProductManagement = () => {
 
     try {
       for (const id of selectedProducts) {
-        await api.delete(`/products/${id}`);
+        await api.delete(`/api/products/${id}`);
       }
 
       fetchProducts();
@@ -430,7 +410,7 @@ const ProductManagement = () => {
         formData.append("file", selectedImageFile);
       }
 
-      await api.put(`/products/${activeProductId}`, formData, {
+      await api.put(`/api/products/${activeProductId}`, formData, {
         headers: {
           "Content-Type": undefined,
         },

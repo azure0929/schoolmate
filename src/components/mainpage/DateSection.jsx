@@ -3,8 +3,7 @@ import styled from "styled-components";
 import axios from "axios";
 import AttendanceConfirmModal from "@/components/modals/AttendanceConfirmModal";
 
-const BASE_API_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:9000/api";
+const BASE_API_URL = import.meta.env.VITE_API_URL || "http://localhost:9000";
 
 const api = axios.create({
   baseURL: BASE_API_URL,
@@ -24,8 +23,8 @@ api.interceptors.request.use(
   },
 );
 
-const BALANCE_API_PATH = "/point-history/student/me/balance";
-const ATTENDANCE_CHECK_API_PATH = "/attend/student/me/check";
+const BALANCE_API_PATH = "/api/point-history/student/me/balance";
+const ATTENDANCE_CHECK_API_PATH = "/api/attend/student/me/check";
 const ATTENDANCE_POINT_AMOUNT = 500;
 const TRANSACTION_TYPE_ATTENDANCE = "ATTENDANCE_DAILY";
 

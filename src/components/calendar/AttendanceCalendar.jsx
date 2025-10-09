@@ -3,29 +3,10 @@ import styled from "styled-components";
 import axios from "axios";
 import AttemdImg from "@/assets/images/attend.png";
 import { FaChevronLeft, FaChevronRight, FaArrowLeft } from "react-icons/fa";
+import api from "@/api/index";
 
-const BASE_API_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:9000/api";
-
-const api = axios.create({
-  baseURL: BASE_API_URL,
-});
-
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("authToken");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  },
-);
-
-const ATTENDANCE_COUNT_API = "/attend/student/me/count";
-const ATTENDANCE_DATES_API = "/attend/student/me/dates";
+const ATTENDANCE_COUNT_API = "/api/attend/student/me/count";
+const ATTENDANCE_DATES_API = "/api/attend/student/me/dates";
 
 const NOW = new Date();
 const CURRENT_DATE = NOW.getDate();

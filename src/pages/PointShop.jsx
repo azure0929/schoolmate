@@ -6,8 +6,7 @@ import axios from "axios";
 import ProductExchangeModal from "@/components/modals/ProductExchangeModal";
 import PaginationControls from "@/components/common/PaginationControls";
 
-const BASE_API_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:9000/api";
+const BASE_API_URL = import.meta.env.VITE_API_URL || "http://localhost:9000";
 
 const api = axios.create({
   baseURL: BASE_API_URL,
@@ -105,7 +104,7 @@ function PointShop() {
     setError(null);
 
     try {
-      const response = await api.get("/products");
+      const response = await api.get("/api/products");
       const shuffledProducts = shuffleArray(response.data);
 
       setAllProducts(shuffledProducts);

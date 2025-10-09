@@ -4,28 +4,7 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/pagination";
-import axios from "axios";
-
-const BASE_API_URL =
-  import.meta.env.REACT_APP_API_URL || "http://localhost:9000/api";
-
-const api = axios.create({
-  baseURL: BASE_API_URL,
-});
-
-api.interceptors.request.use(
-  (config) => {
-    // 필요하다면 토큰을 여기에 추가
-    const token = localStorage.getItem("authToken");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  },
-);
+import api from "@/api/index";
 
 function ProductSection() {
   // 상품 목록 상태
@@ -38,7 +17,7 @@ function ProductSection() {
     setLoading(true);
     try {
       // API 경로: 관리자 페이지와 동일한 GET /products 사용 가정
-      const response = await api.get("/products");
+      const response = await api.get("/api/products");
       setProducts(response.data);
       setError(null);
     } catch (err) {

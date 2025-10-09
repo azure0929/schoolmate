@@ -2,17 +2,13 @@ import React, { useState, useEffect } from "react";
 import logo from "@/assets/images/logo.png";
 import styled from "styled-components";
 import { useNavigate, Link } from "react-router-dom";
-import axios from "axios";
-// 임시로 넣어둔 기본 프로필이미지 :: 추후 삭제해야됨 
-import defaultProfile from "@/assets/images/default-profile.jpg";
-
-const BASE_API_URL = import.meta.env.REACT_APP_API_URL || "http://localhost:9000/api";
+import api from "@/api/index";
 
 const Header = () => {
   const navigate = useNavigate();
   const [userInfo, setUserInfo] = useState("");
 
-    useEffect(() => {
+  useEffect(() => {
     // 컴포넌트가 처음 렌더링될 때 학생 정보 겟또다제
     const fetchUserProfile = async () => {
       const token = localStorage.getItem("authToken");
@@ -25,12 +21,12 @@ const Header = () => {
 
       try {
         // 프로필 정보 요청
-        const response = await axios.get(`${BASE_API_URL}/profile/me`, {
+        const response = await api.get("/api/profile/me", {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
-        setUserInfo(response.data)
+        setUserInfo(response.data);
       } catch (error) {
         console.error("프로필 정보 조회 실패:", error);
         alert("세션이 만료되었거나 유효하지 않습니다. 다시 로그인해주세요.");
@@ -44,7 +40,7 @@ const Header = () => {
   // 날짜 겟또
   const getTodayDate = (dateString) => {
     const date = new Date();
-    const days = ['일', '월', '화', '수', '목', '금', '토'];
+    const days = ["일", "월", "화", "수", "목", "금", "토"];
     const year = date.getFullYear();
     const month = date.getMonth() + 1;
     const day = date.getDate();
@@ -73,13 +69,12 @@ const Header = () => {
 
               {/* 프로필 이미지 + 마이페이지 링크 */}
               <MyPageLink to="/mypage">
-                <ProfileImage 
-                  src={userInfo.profileImgUrl || defaultProfile} 
-                  alt="프로필 이미지" 
+                <ProfileImage
+                  src={userInfo.profileImgUrl || defaultProfile}
+                  alt="프로필 이미지"
                 />
                 <MyPageText>마이페이지</MyPageText>
               </MyPageLink>
-
             </UserMenu>
           )}
         </div>
@@ -97,7 +92,7 @@ const DateInfo = styled.p`
 `;
 
 const StyledHeader = styled.div`
-border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #eee;
   .inner {
     height: 130px;
     display: flex;
@@ -108,7 +103,6 @@ border-bottom: 1px solid #eee;
     width: 176px;
     height: 60px;
     cursor: pointer;
-    }
   }
 `;
 
@@ -129,7 +123,7 @@ const UserInfoText = styled.p`
   font-weight: 500;
   color: #555;
   white-space: nowrap;
-  
+
   span {
     font-weight: bold;
     color: var(--primary-color);

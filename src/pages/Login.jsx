@@ -3,18 +3,9 @@ import styled from "styled-components";
 import { MdOutlineEmail, MdLockOutline } from "react-icons/md";
 import KakaoLogo from "@/assets/images/kakao.png";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "@/api/index";
 
-// 환경 변수 안정화: 환경 변수가 로드되지 않을 경우 기본값 제공
-const BASE_API_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:9000/api";
-
-const api = axios.create({
-  baseURL: BASE_API_URL,
-  headers: {
-    Authorization: localStorage.getItem("Authorization"),
-  },
-});
+const BASE_API_URL = import.meta.env.VITE_API_URL || "http://localhost:9000";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -40,7 +31,7 @@ const Login = () => {
     try {
       // **중요**: 항상 앞에 슬래시를 붙여 절대 경로로 요청합니다.
       const response = await api.post(
-        "/auth/login",
+        "/api/auth/login",
         { email, password },
         { withCredentials: true },
       );
@@ -133,7 +124,6 @@ const Login = () => {
   };
 
   const handleKakaoLogin = () => {
-    // BASE_API_URL 끝의 슬래시 제거 후 안전하게 붙임
     const base = BASE_API_URL.replace(/\/+$/, "");
     const url = `${base}/oauth2/authorization/kakao`;
     window.location.href = url;

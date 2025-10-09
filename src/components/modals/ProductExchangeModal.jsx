@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
-import axios from "axios";
+import api from "@/api/index";
 
 const PRIMARY_COLOR = "#f86166";
 
@@ -11,33 +11,12 @@ const STEPS = {
   RESULT: "result", // 교환 결과 (성공/실패)
 };
 
-const BASE_API_URL =
-  import.meta.env.REACT_APP_API_URL || "http://localhost:9000/api";
-
-const api = axios.create({
-  baseURL: BASE_API_URL,
-});
-
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("authToken");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  },
-);
-
 /**
  * 사용자 보유 포인트 조회 API
  * @returns {Promise<number>} 보유 포인트
  */
 const studentPoints = async () => {
-  // /api/point-history/student/me/balance 엔드포인트 호출
-  const response = await api.get("/point-history/student/me/balance");
+  const response = await api.get("/api/point-history/student/me/balance");
   return response.data;
 };
 
@@ -98,7 +77,7 @@ const ProductExchangeModal = ({
     try {
       // 1. 상품 교환 API 호출: POST /api/exchanges/{productId}
       // 이 API는 JWT 토큰을 통해 학생 ID를 가져오므로 별도의 데이터(body)가 필요 없다.
-      await api.post(`/exchanges/${productId}`);
+      await api.post(`/api/exchanges/${productId}`);
 
       // 교환 성공
       setExchangeSuccess(true);
