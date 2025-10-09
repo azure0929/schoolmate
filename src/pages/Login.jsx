@@ -86,11 +86,8 @@ const Login = () => {
           navigate("/mainpage");
         }
       } else {
-        console.error("로그인 성공했으나 JWT가 발견되지 않음:", { response });
         alert("로그인에 실패했습니다: 서버에서 토큰을 반환하지 않았습니다.");
       }
-
-      console.log("✅ 로그인 성공:", response.data);
     } catch (error) {
       // 에러 메시지 파싱을 더 안전하게 처리
       let errorMessage = "로그인에 실패했습니다.";
