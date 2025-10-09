@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import styled from "styled-components";
 import { MdOutlineEmail, MdLockOutline } from "react-icons/md";
 import KakaoLogo from "@/assets/images/kakao.png";
@@ -6,18 +6,13 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 // 환경 변수 안정화: 환경 변수가 로드되지 않을 경우 기본값 제공
-const BASE_API_URL = import.meta.env.VITE_API_URL || "http://localhost:9000";
-
-// 카카오 인가 요청을 위한 상수 추가
-const KAKAO_CLIENT_ID =
-  import.meta.env.VITE_KAKAO_CLIENT_ID || "f71b4c3a397902b27c666e262e974e86";
-// const KAKAO_REDIRECT_URI = "http://localhost:9000/login/oauth2/code/kakao";
-const KAKAO_SCOPE = "profile_nickname%20account_email";
+const BASE_API_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:9000/api";
 
 const api = axios.create({
   baseURL: BASE_API_URL,
   headers: {
-    "Content-Type": "application/json",
+    Authorization: localStorage.getItem("Authorization"),
   },
 });
 
@@ -26,6 +21,7 @@ const Login = () => {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSignUpClick = () => {
     navigate("/signup");
@@ -35,61 +31,89 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (email === "" || password === "") {
+    if (email.trim() === "" || password.trim() === "") {
       alert("이메일과 비밀번호를 입력해주세요.");
       return;
     }
 
+    setLoading(true);
     try {
-      // 인스턴스 사용: 전체 URL 대신 상대 경로만 사용
-      const response = await api.post("api/auth/login", { email, password });
+      // **중요**: 항상 앞에 슬래시를 붙여 절대 경로로 요청합니다.
+      const response = await api.post(
+        "/auth/login",
+        { email, password },
+        { withCredentials: true },
+      );
 
-      // 토큰 추출 안정화 (소문자/대문자 헤더 모두 처리)
+      // 응답 구조 안전하게 분해
+      const { data = {}, headers = {} } = response || {};
+
+      // 헤더에서 토큰 추출 (axios는 보통 소문자 키를 사용)
       const authHeader =
-        response.headers.authorization || response.headers.Authorization;
-
-      let token = response.data.token;
-
-      if (authHeader && authHeader.startsWith("Bearer ")) {
-        token = authHeader.split(" ")[1];
+        headers["authorization"] ||
+        headers.authorization ||
+        headers.Authorization;
+      let token = null;
+      if (authHeader && typeof authHeader === "string") {
+        if (authHeader.startsWith("Bearer ")) {
+          token = authHeader.split(" ")[1];
+        } else {
+          // 일부 서버는 header 값에 토큰만 담아둘 수 있음
+          token = authHeader;
+        }
       }
 
+      // 바디에서 토큰 추출 (여러 네이밍에 대응)
       if (!token) {
-        // 응답 본문에 없다면, 기존처럼 헤더에서 추출 시도
-        const authHeader =
-          response.headers.authorization || response.headers.Authorization;
-        if (authHeader && authHeader.startsWith("Bearer ")) {
-          token = authHeader.split(" ")[1];
-        }
+        token =
+          data.token ||
+          data.accessToken ||
+          data.data?.token ||
+          data.data?.accessToken ||
+          null;
       }
 
       if (token) {
+        // 로컬 스토리지 저장 및 axios 기본 헤더에 세팅
         localStorage.setItem("authToken", token);
+        api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
-        // 서버 응답 body에서 role을 확인하여 이동
-        if (response.data.role === "ADMIN") {
+        // role에 따라 라우팅 (존재하지 않으면 기본 경로로)
+        const role = data.role || data.data?.role || null;
+        if (role === "ADMIN") {
           navigate("/admin");
         } else {
-          // STUDENT 또는 다른 역할인 경우의 기본 경로
           navigate("/mainpage");
         }
       } else {
-        console.error("로그인 성공했으나 JWT를 찾을 수 없습니다.");
-        alert("로그인에 실패했습니다: 토큰 오류");
+        console.error("로그인 성공했으나 JWT가 발견되지 않음:", { response });
+        alert("로그인에 실패했습니다: 서버에서 토큰을 반환하지 않았습니다.");
       }
+
+      console.log("✅ 로그인 성공:", response.data);
     } catch (error) {
+      // 에러 메시지 파싱을 더 안전하게 처리
       let errorMessage = "로그인에 실패했습니다.";
 
       if (error.response) {
-        // 서버 응답이 있는 경우 (401, 403 등)
+        // 응답이 있는 경우: 서버에서 보낸 메시지 우선 사용
+        const respData = error.response.data;
         try {
-          // 백엔드 LoginFilter의 unsuccessfulAuthentication 응답 파싱
-          const errorResponseText = error.response.data;
-          // 응답이 JSON 문자열일 경우를 대비하여 파싱 시도
-          const errorData = JSON.parse(errorResponseText);
-          errorMessage = errorData.message || errorMessage;
-        } catch (e) {
-          // JSON 파싱 실패 시, 401 Unauthorized 일 때의 명시적 메시지 사용
+          if (typeof respData === "string") {
+            const parsed = JSON.parse(respData);
+            errorMessage = parsed.message || parsed.error || errorMessage;
+          } else if (typeof respData === "object" && respData !== null) {
+            errorMessage =
+              respData.message ||
+              respData.error ||
+              respData.detail ||
+              error.response.statusText ||
+              errorMessage;
+          } else {
+            errorMessage = error.response.statusText || errorMessage;
+          }
+        } catch (parseErr) {
+          // 파싱 실패 시 상태 코드에 따른 기본 메시지
           if (error.response.status === 401) {
             errorMessage = "이메일 또는 비밀번호가 일치하지 않습니다.";
           } else {
@@ -97,21 +121,25 @@ const Login = () => {
           }
         }
       } else if (error.request) {
-        // 요청은 보냈으나 응답을 받지 못한 경우 (네트워크 에러)
+        // 요청은 보냈지만 응답이 없는 경우 (네트워크/CORS)
         errorMessage = "서버에 연결할 수 없습니다. (네트워크 또는 CORS 문제)";
       } else {
-        // 요청 설정 중 문제 발생
-        errorMessage = "요청 설정 오류: " + error.message;
+        // 기타 설정 오류 등
+        errorMessage = "요청 설정 오류: " + (error.message || "");
       }
 
       console.error("로그인 API 호출 에러:", error);
       alert(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleKakaoLogin = () => {
-    const SPRING_SECURITY_KAKAO_START_URL = `${BASE_API_URL}/oauth2/authorization/kakao`;
-    window.location.href = SPRING_SECURITY_KAKAO_START_URL;
+    // BASE_API_URL 끝의 슬래시 제거 후 안전하게 붙임
+    const base = BASE_API_URL.replace(/\/+$/, "");
+    const url = `${base}/oauth2/authorization/kakao`;
+    window.location.href = url;
   };
 
   return (
@@ -125,7 +153,6 @@ const Login = () => {
           <Subtitle>친구들과 소통하고, 포인트를 모아 혜택을 누리세요!</Subtitle>
         </TitleSection>
 
-        {/* 폼 제출 핸들러 연결 */}
         <FormCard>
           <FormTitle>로그인</FormTitle>
           <LoginForm onSubmit={handleSubmit}>
@@ -137,10 +164,12 @@ const Login = () => {
                 </Icon>
                 <StyledInput
                   id="email"
+                  name="email"
                   type="email"
                   placeholder="이메일 주소를 입력해주세요"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
                 />
               </InputGroup>
             </FormGroup>
@@ -152,17 +181,21 @@ const Login = () => {
                   <MdLockOutline />
                 </Icon>
                 <StyledInput
-                  id="password" // Label의 htmlFor와 연결
+                  id="password"
+                  name="password"
                   type="password"
                   placeholder="비밀번호를 입력해주세요"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
                 />
               </InputGroup>
             </FormGroup>
-            <StyledButton type="submit" className="login">
-              로그인
+
+            <StyledButton type="submit" className="login" disabled={loading}>
+              {loading ? "로그인 중..." : "로그인"}
             </StyledButton>
+
             <StyledButton
               type="button"
               className="kakao"
@@ -182,6 +215,9 @@ const Login = () => {
 
 export default Login;
 
+/* ==================================================
+  Styled Components (원본 유지)
+================================================== */
 const FormTitle = styled.h2`
   font-size: 24px;
   font-weight: 700;
@@ -309,6 +345,10 @@ const StyledButton = styled.button`
     align-items: center;
     justify-content: center;
     gap: 10px;
+  }
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
   }
 `;
 
