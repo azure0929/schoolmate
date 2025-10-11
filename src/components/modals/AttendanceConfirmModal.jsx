@@ -3,48 +3,56 @@ import styled from "styled-components";
 import { gsap } from "gsap";
 
 /**
- * 출석체크 확인 모달 (이미지 스타일 및 GSAP 애니메이션 적용)
+ * 출석체크 확인 모달 (Alert 함수를 Prop으로 받도록 수정)
  * @param {function} onConfirm - '예' 클릭 시 실행될 함수
  * @param {function} onCancel - '아니오' 클릭 시 실행될 함수 (모달 닫기)
+ * @param {function} showAlert - Alert 메시지를 띄우는 함수 (ProductManagement의 useAlert에서 가져옴)
  */
-function AttendanceConfirmModal({ onConfirm, onCancel }) {
+function AttendanceConfirmModal({ onConfirm, onCancel, showAlert }) {
   const overlayRef = useRef(null);
   const contentRef = useRef(null);
 
   useEffect(() => {
-    // 1. 오버레이(배경)가 부드럽게 나타나도록 애니메이션 적용
+    // 모달 등장 애니메이션 (변경 없음)
     gsap.fromTo(
       overlayRef.current,
       { opacity: 0 },
       { opacity: 1, duration: 0.3 },
     );
 
-    // 2. 모달 내용이 아래에서 위로 튀어나오도록 애니메이션 적용
     gsap.from(contentRef.current, {
-      y: 50, // 50px 아래에서 시작
-      opacity: 0, // 투명하게 시작
-      scale: 0.95, // 약간 축소된 상태에서 시작
-      ease: "power3.out", // 부드러운 이징 적용
+      y: 50,
+      opacity: 0,
+      scale: 0.95,
+      ease: "power3.out",
       duration: 0.4,
-      delay: 0.1, // 오버레이 후 약간 딜레이
+      delay: 0.1,
     });
   }, []);
 
-  const handleClose = (callback) => {
+  const handleClose = (callback, shouldShowAlert = false) => {
+    // 1. 모달 내용 사라지는 애니메이션
     gsap.to(contentRef.current, {
-      y: -30, // 살짝 위로 이동
+      y: -30,
       opacity: 0,
       scale: 0.9,
       duration: 0.3,
       ease: "power2.in",
     });
 
-    // 오버레이 애니메이션 실행 후 최종적으로 모달 닫기
+    // 2. 오버레이 애니메이션 실행 후 최종적으로 모달 닫기
     gsap.to(overlayRef.current, {
       opacity: 0,
       duration: 0.3,
-      delay: 0.1, // 내용이 사라진 후 오버레이 사라지도록 딜레이
-      onComplete: callback, // 애니메이션 완료 후 전달받은 콜백(onCancel 또는 onConfirm) 실행
+      delay: 0.1,
+      onComplete: () => {
+        // 토스트 대신 showAlert 함수 호출
+        if (shouldShowAlert && typeof showAlert === "function") {
+          showAlert("출석체크가 완료되었습니다! +500P", "success");
+        }
+
+        callback(); // 최종적으로 모달 닫기/확인 함수 실행
+      },
     });
   };
 
@@ -56,7 +64,8 @@ function AttendanceConfirmModal({ onConfirm, onCancel }) {
         <ButtonGroup>
           <ModalButton
             className="confirm"
-            onClick={() => handleClose(onConfirm)}
+            // '예' 클릭 시 Alert 실행 플래그(true)를 전달
+            onClick={() => handleClose(onConfirm, true)}
           >
             출석하기
           </ModalButton>
@@ -110,7 +119,6 @@ const ButtonGroup = styled.div`
   display: flex;
   justify-content: center;
   gap: 15px;
-  margin-top: 20px;
 `;
 
 const ModalButton = styled.button`
@@ -124,10 +132,11 @@ const ModalButton = styled.button`
   min-width: 100px;
 
   &.confirm {
-    background-color: var(--primary-color);
-    color: white;
+    background-color: var(--primary-color,);
+    color: #333;
     &:hover {
-      background-color: #c31e1e;
+      color: #ffffff;
+      background-color: #a91010;
     }
   }
 

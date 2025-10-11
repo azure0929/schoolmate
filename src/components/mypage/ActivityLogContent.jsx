@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import styled from "styled-components";
 import axios from "axios";
 import PaginationControls from "@/components/common/PaginationControls";
+import gsap from "gsap";
 
-const BASE_URL = "http://localhost:9000/api";
-const ATTENDANCE_COUNT_API = "/attend/student/me/count";
+const VITE_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:9000";
+const BASE_URL = `${VITE_BASE_URL}`;
+const ATTENDANCE_COUNT_API = "/api/attend/student/me/count";
 
 const ActivityLogContent = () => {
   const [pointBalance, setPointBalance] = useState(0);
@@ -15,6 +17,12 @@ const ActivityLogContent = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
+
+  // ⭐️ GSAP Ref 추가
+  const wrapRef = useRef(null);
+  const summaryRef = useRef(null);
+  const titleRef = useRef(null);
+  const listRef = useRef(null);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -41,13 +49,19 @@ const ActivityLogContent = () => {
         exchangeRes,
         attendanceCountRes,
       ] = await Promise.all([
-        axios.get(`${BASE_URL}/point-history/student/me/balance`, config),
-        axios.get(`${BASE_URL}/point-history/student/me/meal-count`, config),
-        axios.get(`${BASE_URL}/point-history/student/me/used-points`, config),
+        axios.get(`${BASE_URL}/api/point-history/student/me/balance`, config),
+        axios.get(
+          `${BASE_URL}/api/point-history/student/me/meal-count`,
+          config,
+        ),
+        axios.get(
+          `${BASE_URL}/api/point-history/student/me/used-points`,
+          config,
+        ),
 
         // 교환 목록 API
         axios.get(
-          `${BASE_URL}/exchanges/my-exchanges?page=${currentPage}&size=6&sort=exchangeDate,desc`,
+          `${BASE_URL}/api/exchanges/my-exchanges?page=${currentPage}&size=6&sort=exchangeDate,desc`,
           config,
         ),
 
@@ -68,14 +82,19 @@ const ActivityLogContent = () => {
 
         const formatDate = (dateString) => {
           if (!dateString) return "N/A";
+          // 날짜 객체를 생성하고 YYYY.MM.DD 형식으로 포맷팅
           return new Date(dateString)
-            .toISOString()
-            .split("T")[0]
-            .replace(/-/g, ".");
+            .toLocaleDateString("ko-KR", {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+            })
+            .replace(/\s/g, "")
+            .slice(0, -1); // 마지막 마침표 제거
         };
 
         const exchangedDate = formatDate(item.exchangeDate);
-        const usedDate = formatDate(item.usedDate);
+        const usedDate = item.usedDate ? formatDate(item.usedDate) : "N/A";
 
         let productExpirationDate = "N/A";
         let expirationDateObject = null;
@@ -87,14 +106,13 @@ const ActivityLogContent = () => {
             expirationDateObject.getFullYear() + 1,
           );
 
-          // 한국 시간 포맷으로 YYYY.MM.DD 형식으로 변경
+          // 유효기간 날짜 포맷팅
           productExpirationDate = expirationDateObject
             .toLocaleDateString("ko-KR", {
               year: "numeric",
               month: "2-digit",
               day: "2-digit",
             })
-            // "YYYY. MM. DD." 형태에서 공백을 제거하고 마지막 점 제거 -> "YYYY.MM.DD"
             .replace(/\s/g, "")
             .slice(0, -1);
         }
@@ -110,7 +128,7 @@ const ActivityLogContent = () => {
         if (item.usedDate) {
           status = "used";
         } else if (expirationDateObject && expirationDateObject < now) {
-          status = "unused";
+          status = "expired"; // ⭐️ 상태 추가: 만료됨
         } else if (expirationDateObject) {
           // 7일(7 * 24 * 60 * 60 * 1000ms) 이내로 남았는지 확인
           const sevenDaysInFuture = new Date(
@@ -160,7 +178,55 @@ const ActivityLogContent = () => {
     fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    // isLoading이 false일 때만 실행
+    if (!isLoading) {
+      const ctx = gsap.context(() => {
+        const tl = gsap.timeline({
+          defaults: { duration: 0.7, ease: "power2.out" },
+        });
+
+        // 1. 전체 랩퍼와 요약 섹션 페이드인
+        // listRef.current 자체를 초기 숨김 대상에 포함합니다.
+        gsap.set([summaryRef.current, titleRef.current, listRef.current], {
+          opacity: 1,
+          y: 30,
+        });
+
+        tl.to(summaryRef.current, { opacity: 1, y: 0 }, 0.1);
+        tl.to(titleRef.current, { opacity: 1, y: 0 }, 0.2);
+
+        // 2. 교환 목록 Staggered 진입
+        const listItems = gsap.utils.toArray(listRef.current.children);
+
+        // 목록이 있고, 첫 번째 자식이 ExchangeItem(li)일 경우 Staggered 애니메이션 적용
+        // (Placeholder는 ul의 자식으로 바로 들어가지 않을 수 있지만, 안전하게 li를 확인합니다.)
+        if (
+          listItems.length > 0 &&
+          listItems[0].tagName.toLowerCase() === "li"
+        ) {
+          tl.to(
+            listItems,
+            {
+              opacity: 1,
+              y: 0,
+              stagger: 0.08,
+              duration: 0.5,
+            },
+            0.3,
+          );
+        } else {
+          // 목록이 비어있거나 Placeholder만 있는 경우: listRef 컨테이너 자체를 애니메이션
+          tl.to(listRef.current, { opacity: 1, y: 0, duration: 0.5 }, 0.3);
+        }
+      }, wrapRef);
+
+      return () => ctx.revert();
+    }
+  }, [isLoading, exchangeList]);
+
   const handlePageChange = (page) => {
+    // 페이지네이션은 1부터 시작하므로 API 요청 시 0부터 시작하도록 -1 처리
     setCurrentPage(page - 1);
   };
 
@@ -169,8 +235,8 @@ const ActivityLogContent = () => {
   }
 
   return (
-    <ActivityLogWrap>
-      <SummarySection>
+    <ActivityLogWrap ref={wrapRef}>
+      <SummarySection ref={summaryRef}>
         <SummaryItem>
           <Label>출석 일수:</Label>
           <Value>{attendanceDays.toLocaleString()}</Value>
@@ -189,9 +255,9 @@ const ActivityLogContent = () => {
         </SummaryItem>
       </SummarySection>
 
-      <SectionTitle>교환한 상품</SectionTitle>
+      <SectionTitle ref={titleRef}>교환한 상품</SectionTitle>
 
-      <ExchangeList>
+      <ExchangeList ref={listRef}>
         {exchangeList.length > 0 ? (
           exchangeList.map((item) => (
             <ExchangeItem key={item.id}>
@@ -201,17 +267,32 @@ const ActivityLogContent = () => {
                 <PlaceholderImage />
               )}
 
-              <ItemDetails>상품명: {item.name}</ItemDetails>
-              <ItemDetails>포인트: {item.point}</ItemDetails>
-              <ItemDetails>유효기간: {item.expirationDate}</ItemDetails>
-              <ItemDetails>교환일자: {item.exchangedDate}</ItemDetails>
-              <ItemDetails>사용일자: {item.usedDate}</ItemDetails>
+              <DetailsGroup>
+                <ItemDetails className="name-point">
+                  <ItemName>{item.name}</ItemName>
+                  <ItemPoint>{item.point}</ItemPoint>
+                </ItemDetails>
+                <ItemDetails className="date-info">
+                  <span className="date-label">교환일:</span>{" "}
+                  {item.exchangedDate}
+                </ItemDetails>
+                <ItemDetails className="date-info">
+                  <span className="date-label">유효기간:</span>{" "}
+                  {item.expirationDate}
+                </ItemDetails>
+                <ItemDetails className="date-info">
+                  <span className="date-label">사용일:</span> {item.usedDate}
+                </ItemDetails>
+              </DetailsGroup>
+
               <ItemStatus $status={item.status}>
                 {item.status === "used"
                   ? "사용 완료"
                   : item.status === "unused_imminent"
                     ? "미사용 (임박)"
-                    : "미사용"}
+                    : item.status === "expired"
+                      ? "만료" // ⭐️ 만료 상태 표시
+                      : "미사용"}
               </ItemStatus>
             </ExchangeItem>
           ))
@@ -220,21 +301,30 @@ const ActivityLogContent = () => {
         )}
       </ExchangeList>
 
-      <PaginationControls
-        currentPage={currentPage + 1}
-        totalPages={totalPages}
-        onPageChange={handlePageChange}
-      />
+      {totalPages > 1 && (
+        <PaginationControls
+          currentPage={currentPage + 1}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+        />
+      )}
     </ActivityLogWrap>
   );
 };
 
 export default ActivityLogContent;
 
+// --- 스타일 컴포넌트 ---
+const PRIMARY_COLOR = "var(--primary-color, #ff6b6b)";
+const ACCENT_COLOR_BLUE = "#007bff";
+const ACCENT_COLOR_GRAY = "#999";
+const ACCENT_COLOR_RED = "#dc3545";
+
 const Placeholder = styled.div`
   padding: 50px;
   text-align: center;
   color: #999;
+  font-size: 1.1rem;
 `;
 
 const SectionTitle = styled.h3`
@@ -242,50 +332,112 @@ const SectionTitle = styled.h3`
   font-weight: 700;
   margin-bottom: 25px;
   text-align: left;
+
+  @media (max-width: 768px) {
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+    padding: 0 10px;
+  }
 `;
 
 const ActivityLogWrap = styled.div`
   padding-top: 20px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
 `;
 
 const SummarySection = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 0;
+  padding: 20px;
   margin-bottom: 40px;
-  border-bottom: 1px solid #d9d9d9;
+  border: 1px solid #d9d9d9;
+  border-radius: 10px;
+  background-color: #fff;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 15px;
+    margin-bottom: 20px;
+    margin: 0 10px 20px 10px;
+  }
 `;
 
 const SummaryItem = styled.div`
   display: flex;
-  align-items: baseline;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0 15px;
+
+  &:not(:last-child) {
+    border-right: 1px solid #eee;
+  }
+
+  @media (max-width: 768px) {
+    flex-direction: row;
+    justify-content: space-between;
+    width: 100%;
+    padding: 8px 0;
+
+    &:not(:last-child) {
+      border-right: none;
+      border-bottom: 1px dashed #eee;
+    }
+  }
 `;
 
 const Label = styled.span`
-  color: #333;
-  font-size: 1.125rem;
-  min-width: auto;
-  margin-right: 10px;
+  color: #666;
+  font-size: 0.95rem;
+  margin-bottom: 4px;
   font-weight: 500;
+
+  @media (max-width: 768px) {
+    font-size: 1rem;
+    margin-bottom: 0;
+    color: #333;
+    min-width: 120px;
+  }
 `;
 
 const Value = styled.span`
   font-size: 1.625rem;
   font-weight: 700;
-  color: var(--primary-color, #ff6b6b);
+  color: ${PRIMARY_COLOR};
+
+  @media (max-width: 768px) {
+    font-size: 1.3rem;
+  }
 `;
 
 const ExchangeList = styled.ul`
   list-style: none;
-  padding: 0;
+  padding: 0 20px;
+
+  @media (max-width: 768px) {
+    padding: 0 10px;
+  }
 `;
 
 const ExchangeItem = styled.li`
   display: flex;
   align-items: center;
-  padding: 15px 0;
+  padding: 20px 0;
   border-bottom: 1px solid #eee;
+  transition: background-color 0.2s;
+
+  /* ⭐️ GSAP 초기 상태 */
+  opacity: 0;
+  transform: translateY(20px);
+
+  @media (max-width: 768px) {
+    flex-wrap: wrap; /* ⭐️ 모바일: 줄바꿈 허용 */
+    padding: 15px 0;
+  }
 `;
 
 const ItemImage = styled.img`
@@ -295,6 +447,7 @@ const ItemImage = styled.img`
   border-radius: 8px;
   margin-right: 20px;
   border: 1px solid #eee;
+  flex-shrink: 0;
 `;
 
 const PlaceholderImage = styled.div`
@@ -303,6 +456,7 @@ const PlaceholderImage = styled.div`
   background-color: #f0f0f0;
   border-radius: 8px;
   margin-right: 20px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -310,24 +464,93 @@ const PlaceholderImage = styled.div`
   font-size: 0.8rem;
 `;
 
-const ItemDetails = styled.span`
+const DetailsGroup = styled.div`
+  display: flex;
+  flex-direction: column;
   flex-grow: 1;
+  gap: 5px;
+  max-width: calc(100% - 180px); /* 이미지(80) + 마진(20) + 상태(90) */
+
+  @media (max-width: 768px) {
+    max-width: none;
+    width: calc(100% - 100px); /* 이미지 제외 공간 */
+  }
+`;
+
+const ItemDetails = styled.div`
+  font-size: 0.95rem;
+  color: #555;
+  display: flex;
+  align-items: center;
+
+  &.name-point {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 5px;
+
+    @media (max-width: 768px) {
+      width: 100%;
+      margin-bottom: 0;
+    }
+  }
+
+  &.date-info {
+    @media (max-width: 768px) {
+      width: 50%; /* 모바일에서 2줄로 배치 */
+      font-size: 0.85rem;
+    }
+  }
+
+  .date-label {
+    font-weight: 500;
+    color: #888;
+    min-width: 65px;
+    margin-right: 5px;
+  }
+`;
+
+const ItemName = styled.span`
+  flex-grow: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
+const ItemPoint = styled.span`
+  color: ${PRIMARY_COLOR};
+  font-size: 1rem;
+  font-weight: 700;
+  margin-left: 10px;
+  flex-shrink: 0;
 `;
 
 const ItemStatus = styled.span`
   font-size: 1rem;
-  font-weight: 500;
-  min-width: 90px;
+  font-weight: 700;
+  min-width: 110px;
   text-align: right;
+  margin-left: auto; /* 우측 끝으로 밀기 */
+  flex-shrink: 0;
+
+  @media (max-width: 768px) {
+    min-width: 80px;
+    text-align: left;
+    margin-top: 10px;
+    margin-left: 10px;
+    font-size: 0.9rem;
+  }
 
   color: ${(props) => {
     switch (props.$status) {
       case "used":
-        return "#999";
+        return ACCENT_COLOR_GRAY; // 사용 완료
       case "unused_imminent":
-        return "#ff6b6b";
+        return PRIMARY_COLOR; // 미사용 (임박) - 주황색/빨간색 계열
       case "unused":
-        return "#007bff";
+        return ACCENT_COLOR_BLUE; // 미사용 - 파란색 계열
+      case "expired":
+        return ACCENT_COLOR_RED; // ⭐️ 만료 - 빨간색 계열
       default:
         return "#333";
     }

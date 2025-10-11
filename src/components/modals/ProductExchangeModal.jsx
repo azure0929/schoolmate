@@ -20,16 +20,25 @@ const studentPoints = async () => {
   return response.data;
 };
 
+// ⭐️ ProductExchangeModal 컴포넌트 시그니처 변경: toastRef prop 추가
 const ProductExchangeModal = ({
   isOpen,
   onClose,
   selectedProduct,
   onExchangeSuccess,
+  toastRef, // ⭐️ toastRef 추가
 }) => {
   const [currentStep, setCurrentStep] = useState(STEPS.CONFIRMATION);
   const [userPoints, setUserPoints] = useState(null);
   const [exchangeError, setExchangeError] = useState(null);
   const [exchangeSuccess, setExchangeSuccess] = useState(false);
+
+  // ⭐️ showToast 유틸리티 함수 정의
+  const showToast = (message, type = "success") => {
+    if (toastRef && toastRef.current) {
+      toastRef.current.showToast(message, type);
+    }
+  };
 
   useEffect(() => {
     if (isOpen && selectedProduct) {
@@ -43,7 +52,11 @@ const ProductExchangeModal = ({
   // 사용자 보유 포인트 조회 함수
   const loadUserPoints = async () => {
     if (!localStorage.getItem("authToken")) {
-      alert("로그인 정보가 유효하지 않습니다. 다시 로그인해주세요.");
+      // ⭐️ 네이티브 alert() 대신 showToast 사용
+      showToast(
+        "로그인 정보가 유효하지 않습니다. 다시 로그인해주세요.",
+        "error",
+      );
       onClose();
       return;
     }
@@ -53,6 +66,7 @@ const ProductExchangeModal = ({
       setUserPoints(points);
     } catch (error) {
       console.error("보유 포인트 조회 실패:", error);
+      // 에러 메시지는 상태에 저장하여 모달에 표시
       setExchangeError(
         "보유 포인트 조회에 실패했습니다. (서버 연결 또는 사용자 정보 오류)",
       );
@@ -68,7 +82,6 @@ const ProductExchangeModal = ({
   const handleExchange = async () => {
     if (!selectedProduct || !isExchangePossible) return;
 
-    // productId는 Integer 타입이므로 형 변환이 필요하지 않도록 백엔드 컨트롤러에 맞춥니다.
     const productId = selectedProduct.productId;
 
     setCurrentStep(STEPS.EXCHANGING);
@@ -76,22 +89,26 @@ const ProductExchangeModal = ({
 
     try {
       // 1. 상품 교환 API 호출: POST /api/exchanges/{productId}
-      // 이 API는 JWT 토큰을 통해 학생 ID를 가져오므로 별도의 데이터(body)가 필요 없다.
       await api.post(`/api/exchanges/${productId}`);
 
       // 교환 성공
       setExchangeSuccess(true);
       setExchangeError(null);
       setCurrentStep(STEPS.RESULT);
+
+      // ⭐️ 교환 성공 시 showToast 호출
+      showToast(
+        `${selectedProduct.productName} 교환이 완료되었습니다.`,
+        "success",
+      );
+
       onExchangeSuccess && onExchangeSuccess();
     } catch (error) {
       console.error("상품 교환 요청 실패:", error);
       let errorMessage = "상품 교환 중 알 수 없는 오류가 발생했습니다.";
 
       if (error.response) {
-        // 백엔드에서 400 Bad Request 또는 404 Not Found 시 에러 메시지를 body로 보냄
         if (error.response.data && typeof error.response.data === "string") {
-          // 서버에서 보낸 에러 메시지(예: "사용 가능한 포인트가 부족합니다.") 사용
           errorMessage = error.response.data;
         } else if (error.response.status === 400) {
           errorMessage = "유효하지 않은 요청입니다. (포인트 부족 등)";
@@ -107,6 +124,9 @@ const ProductExchangeModal = ({
       setExchangeError(errorMessage);
       setExchangeSuccess(false);
       setCurrentStep(STEPS.RESULT);
+
+      // ⭐️ 교환 실패 시 showToast 호출
+      showToast(`교환 실패: ${errorMessage}`, "error");
     }
   };
 
@@ -194,7 +214,7 @@ const ProductExchangeModal = ({
           </PointRow>
         </PointSummary>
 
-        {/* 결과 메시지 (빨간 글자 처리) */}
+        {/* 결과 메시지 (빨간 글자 처리) - 이 메시지는 토스트로 대체되지 않고 모달 내부에 유지됩니다. */}
         {currentStep === STEPS.RESULT && (
           <ResultText $isSuccess={exchangeSuccess}>
             {exchangeSuccess
@@ -224,6 +244,8 @@ const ProductExchangeModal = ({
 };
 
 export default ProductExchangeModal;
+
+// (스타일 컴포넌트는 변경 없음)
 
 const ModalOverlay = styled.div`
   position: fixed;

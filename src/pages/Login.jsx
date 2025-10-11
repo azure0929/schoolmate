@@ -1,24 +1,87 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import styled from "styled-components";
 import { MdOutlineEmail, MdLockOutline } from "react-icons/md";
 import KakaoLogo from "@/assets/images/kakao.png";
 import { useNavigate } from "react-router-dom";
 import api from "@/api/index";
+import { gsap } from "gsap";
 
 const BASE_API_URL = import.meta.env.VITE_API_URL || "http://localhost:9000";
 
 const Login = () => {
   const navigate = useNavigate();
 
+  // GSAP에서 참조할 DOM 요소들
+  const loginContainerRef = useRef(null);
+  const titleSectionRef = useRef(null);
+  const formCardRef = useRef(null);
+  const kakaoButtonRef = useRef(null);
+  const loginButtonRef = useRef(null);
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // 컴포넌트 마운트 시 GSAP 애니메이션 실행 (GSAP 로직은 반응형과 독립적으로 유지)
+  useEffect(() => {
+    // GSAP Timeline 생성
+    const tl = gsap.timeline({
+      defaults: { duration: 0.8, ease: "power3.out" },
+    });
+
+    // 1. 배경
+    gsap.fromTo(
+      loginContainerRef.current,
+      { opacity: 0 },
+      { opacity: 1, duration: 1, ease: "none" },
+    );
+
+    // 2. 제목 섹션 등장
+    tl.from(titleSectionRef.current, { y: -50, opacity: 0, scale: 0.95 }, 0.1);
+
+    // 3. 로그인 폼 카드 등장
+    tl.from(
+      formCardRef.current,
+      { y: 50, opacity: 0, rotationX: 10, transformOrigin: "top center" },
+      "-=0.5",
+    );
+
+    // 4. 입력 필드 및 버튼 등장
+    gsap.from(
+      formCardRef.current.querySelectorAll("h2, .form-group, button"),
+      {
+        opacity: 0,
+        y: 10,
+        stagger: 0.1,
+        duration: 0.5,
+        ease: "power2.out",
+      },
+      "-=0.3",
+    );
+
+    // 버튼 호버 애니메이션 설정
+    const buttons = [loginButtonRef.current, kakaoButtonRef.current];
+    buttons.forEach((btn) => {
+      if (btn) {
+        btn.onmouseenter = () => {
+          gsap.to(btn, { scale: 1.03, duration: 0.3, ease: "power2.out" });
+        };
+        btn.onmouseleave = () => {
+          gsap.to(btn, { scale: 1, duration: 0.3, ease: "power2.out" });
+        };
+      }
+    });
+  }, []);
+
   const handleSignUpClick = () => {
-    navigate("/signup");
+    gsap.to(loginContainerRef.current, {
+      opacity: 0,
+      duration: 0.5,
+      onComplete: () => navigate("/signup"),
+    });
   };
 
-  // 로그인 제출 핸들러 함수 (axios 인스턴스 사용)
+  // 로그인 제출 핸들러 함수
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -29,17 +92,14 @@ const Login = () => {
 
     setLoading(true);
     try {
-      // **중요**: 항상 앞에 슬래시를 붙여 절대 경로로 요청합니다.
       const response = await api.post(
         "/api/auth/login",
         { email, password },
         { withCredentials: true },
       );
 
-      // 응답 구조 안전하게 분해
       const { data = {}, headers = {} } = response || {};
 
-      // 헤더에서 토큰 추출 (axios는 보통 소문자 키를 사용)
       const authHeader =
         headers["authorization"] ||
         headers.authorization ||
@@ -49,12 +109,9 @@ const Login = () => {
         if (authHeader.startsWith("Bearer ")) {
           token = authHeader.split(" ")[1];
         } else {
-          // 일부 서버는 header 값에 토큰만 담아둘 수 있음
           token = authHeader;
         }
       }
-
-      // 바디에서 토큰 추출 (여러 네이밍에 대응)
       if (!token) {
         token =
           data.token ||
@@ -65,26 +122,23 @@ const Login = () => {
       }
 
       if (token) {
-        // 로컬 스토리지 저장 및 axios 기본 헤더에 세팅
         localStorage.setItem("authToken", token);
         api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
-        // role에 따라 라우팅 (존재하지 않으면 기본 경로로)
         const role = data.role || data.data?.role || null;
-        if (role === "ADMIN") {
-          navigate("/admin");
-        } else {
-          navigate("/mainpage");
-        }
+        const targetPath = role === "ADMIN" ? "/admin" : "/mainpage";
+
+        gsap.to(loginContainerRef.current, {
+          opacity: 0,
+          duration: 0.5,
+          onComplete: () => navigate(targetPath),
+        });
       } else {
         alert("로그인에 실패했습니다: 서버에서 토큰을 반환하지 않았습니다.");
       }
     } catch (error) {
-      // 에러 메시지 파싱을 더 안전하게 처리
       let errorMessage = "로그인에 실패했습니다.";
-
       if (error.response) {
-        // 응답이 있는 경우: 서버에서 보낸 메시지 우선 사용
         const respData = error.response.data;
         try {
           if (typeof respData === "string") {
@@ -101,7 +155,6 @@ const Login = () => {
             errorMessage = error.response.statusText || errorMessage;
           }
         } catch (parseErr) {
-          // 파싱 실패 시 상태 코드에 따른 기본 메시지
           if (error.response.status === 401) {
             errorMessage = "이메일 또는 비밀번호가 일치하지 않습니다.";
           } else {
@@ -109,10 +162,8 @@ const Login = () => {
           }
         }
       } else if (error.request) {
-        // 요청은 보냈지만 응답이 없는 경우 (네트워크/CORS)
         errorMessage = "서버에 연결할 수 없습니다. (네트워크 또는 CORS 문제)";
       } else {
-        // 기타 설정 오류 등
         errorMessage = "요청 설정 오류: " + (error.message || "");
       }
 
@@ -126,13 +177,17 @@ const Login = () => {
   const handleKakaoLogin = () => {
     const base = BASE_API_URL.replace(/\/+$/, "");
     const url = `${base}/oauth2/authorization/kakao`;
-    window.location.href = url;
+    gsap.to(loginContainerRef.current, {
+      opacity: 0,
+      duration: 0.5,
+      onComplete: () => (window.location.href = url),
+    });
   };
 
   return (
-    <LoginContainer>
+    <LoginContainer ref={loginContainerRef}>
       <Contents>
-        <TitleSection>
+        <TitleSection ref={titleSectionRef}>
           <MainTitle>
             학교생활 여기어때? <br />
             지금부터는 Fun!
@@ -140,10 +195,10 @@ const Login = () => {
           <Subtitle>친구들과 소통하고, 포인트를 모아 혜택을 누리세요!</Subtitle>
         </TitleSection>
 
-        <FormCard>
+        <FormCard ref={formCardRef}>
           <FormTitle>로그인</FormTitle>
           <LoginForm onSubmit={handleSubmit}>
-            <FormGroup>
+            <FormGroup className="form-group">
               <Label htmlFor="email">이메일</Label>
               <InputGroup>
                 <Icon>
@@ -161,7 +216,7 @@ const Login = () => {
               </InputGroup>
             </FormGroup>
 
-            <FormGroup>
+            <FormGroup className="form-group">
               <Label htmlFor="password">비밀번호</Label>
               <InputGroup>
                 <Icon>
@@ -179,11 +234,17 @@ const Login = () => {
               </InputGroup>
             </FormGroup>
 
-            <StyledButton type="submit" className="login" disabled={loading}>
+            <StyledButton
+              ref={loginButtonRef}
+              type="submit"
+              className="login"
+              disabled={loading}
+            >
               {loading ? "로그인 중..." : "로그인"}
             </StyledButton>
 
             <StyledButton
+              ref={kakaoButtonRef}
               type="button"
               className="kakao"
               onClick={handleKakaoLogin}
@@ -202,15 +263,68 @@ const Login = () => {
 
 export default Login;
 
-/* ==================================================
-  Styled Components (원본 유지)
-================================================== */
-const FormTitle = styled.h2`
-  font-size: 24px;
-  font-weight: 700;
-  margin-bottom: 30px;
-  color: var(--text-primary);
+const LoginContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  width: 100%;
+  background: var(--gradient-hero);
+  padding: 20px;
+
+  @media (max-width: 768px) {
+    align-items: center;
+    padding-top: 20px;
+    padding-bottom: 20px;
+  }
+`;
+
+const Contents = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 auto;
+  width: fit-content;
+
+  @media (max-width: 768px) {
+    width: 100%;
+    padding: 0 10px;
+  }
+`;
+
+const TitleSection = styled.div`
+  margin-bottom: 46px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+
+  @media (max-width: 768px) {
+    margin-bottom: 30px;
+    text-align: center;
+  }
+`;
+
+const MainTitle = styled.h1`
+  font-size: 3.75rem;
+  font-weight: bold;
+  line-height: 1.3;
+  margin-bottom: 10px;
+
+  @media (max-width: 768px) {
+    font-size: 2.2rem;
+    line-height: 1.2;
+  }
+  @media (max-width: 480px) {
+    font-size: 1.8rem;
+  }
+`;
+
+const Subtitle = styled.p`
+  font-size: 1.25rem;
   text-align: center;
+  font-weight: 500;
+
+  @media (max-width: 768px) {
+    font-size: 1rem;
+  }
 `;
 
 const FormCard = styled.div`
@@ -222,41 +336,25 @@ const FormCard = styled.div`
   background-color: rgba(255, 255, 255, 0.65);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
   backdrop-filter: blur(4px);
+
+  @media (max-width: 768px) {
+    padding: 25px;
+    border-radius: 12px;
+    max-width: 100%;
+  }
 `;
 
-const LoginContainer = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  width: 100%;
-  background: var(--gradient-hero);
-`;
-
-const Contents = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin: 0 auto;
-  width: fit-content;
-`;
-
-const TitleSection = styled.div`
-  margin-bottom: 46px;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-`;
-
-const MainTitle = styled.h1`
-  font-size: 3.75rem;
-  font-weight: bold;
-  line-height: 1.3;
-  margin-bottom: 10px;
-`;
-
-const Subtitle = styled.p`
-  font-size: 1.25rem;
+const FormTitle = styled.h2`
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 30px;
+  color: var(--text-primary);
   text-align: center;
-  font-weight: 500;
+
+  @media (max-width: 768px) {
+    font-size: 20px;
+    margin-bottom: 20px;
+  }
 `;
 
 const LoginForm = styled.form`
@@ -309,6 +407,10 @@ const StyledInput = styled.input`
   padding: 0;
   color: var(--text-color);
   height: 46px;
+
+  @media (max-width: 768px) {
+    height: 40px;
+  }
 `;
 
 const StyledButton = styled.button`
@@ -320,7 +422,12 @@ const StyledButton = styled.button`
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+
+  @media (max-width: 768px) {
+    height: 50px;
+    font-size: 1rem;
+  }
+
   &.login {
     background-color: var(--primary-color);
     color: white;
@@ -346,9 +453,18 @@ const LinkContainer = styled.div`
   width: 100%;
   text-align: center;
   cursor: pointer;
+
+  @media (max-width: 768px) {
+    margin-top: 30px;
+  }
 `;
 
 const KakaoLogoImage = styled.img`
   width: 34px;
   height: 34px;
+
+  @media (max-width: 768px) {
+    width: 30px;
+    height: 30px;
+  }
 `;
