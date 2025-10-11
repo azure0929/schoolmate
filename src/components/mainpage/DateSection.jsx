@@ -1,27 +1,8 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import styled from "styled-components";
-import axios from "axios";
 import AttendanceConfirmModal from "@/components/modals/AttendanceConfirmModal";
-
-const BASE_API_URL = import.meta.env.VITE_API_URL || "http://localhost:9000";
-
-const api = axios.create({
-  baseURL: BASE_API_URL,
-});
-
-api.interceptors.request.use(
-  (config) => {
-    // 로컬 스토리지에서 토큰을 가져와 헤더에 추가
-    const token = localStorage.getItem("authToken");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  },
-);
+import api from "@/api/index";
+import ToastNotification from "@/components/modals/ToastNotification";
 
 const BALANCE_API_PATH = "/api/point-history/student/me/balance";
 const ATTENDANCE_CHECK_API_PATH = "/api/attend/student/me/check";
@@ -40,9 +21,20 @@ function DatePointSection() {
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const toastRef = useRef(null);
+
+  // showToast 유틸리티 함수 정의
+  const showToast = (message, type = "success") => {
+    if (toastRef.current) {
+      toastRef.current.showToast(message, type);
+    }
+  };
+
   // 1. 포인트 잔액 조회 함수 (재사용을 위해 useCallback 사용)
   const fetchPointBalance = useCallback(async () => {
     if (!localStorage.getItem("authToken")) {
+      // 로그인 필요 시 토스트 알림
+      showToast("로그인이 필요합니다.", "error");
       setError("로그인이 필요합니다.");
       setLoading(false);
       return;
@@ -55,7 +47,8 @@ function DatePointSection() {
       setError(null);
     } catch (err) {
       console.error("포인트 잔액 조회 실패:", err);
-      // 404, 401 등 HTTP 에러 처리
+      // 잔액 조회 실패 시 토스트 알림
+      showToast("잔액 조회 실패", "error");
       setError("잔액 조회 실패");
     } finally {
       setLoading(false);
@@ -70,7 +63,7 @@ function DatePointSection() {
   // 2. 출석체크 API 호출 및 잔액 업데이트 로직
   const handleAttendanceConfirm = async () => {
     setIsModalOpen(false); // 모달 닫기
-    setLoading(true); // 로딩 상태 설정
+    // setLoading(true); // 잔액 새로고침에서 로딩을 처리하므로 여기서는 제거
 
     const requestBody = {
       amount: ATTENDANCE_POINT_AMOUNT,
@@ -82,18 +75,17 @@ function DatePointSection() {
       // POST 요청으로 500포인트 지급 내역 기록
       await api.post(ATTENDANCE_CHECK_API_PATH, requestBody);
 
-      alert(
-        `출석체크 성공! 🎉 ${ATTENDANCE_POINT_AMOUNT}포인트가 지급되었습니다. 잔액을 새로고침합니다.`,
-      );
-
+      // 성공 알림은 모달이 닫히면서 호출되는 showToast에서 처리됩니다.
       // 포인트 지급 후, 잔액을 새로고침하여 즉시 반영
       await fetchPointBalance();
+      // 실패 알림은 여기서 직접 showToast 호출
+      showToast(`출석체크가 완료되었습니다! +500P", "success"`);
     } catch (error) {
-      console.error("출석체크 중 오류 발생:", error);
       const errorMessage =
-        error.response?.data?.message ||
-        "출석체크 중 오류가 발생했습니다. (이미 출석했거나 서버 오류)";
-      alert(`출석체크 실패: ${errorMessage} 😢`);
+        error.response?.data?.message || "이미 출석했습니다.";
+
+      // 실패 알림은 여기서 직접 showToast 호출
+      showToast(`출석체크 실패: ${errorMessage}`, "error");
       setLoading(false);
     }
   };
@@ -105,6 +97,9 @@ function DatePointSection() {
 
   return (
     <>
+      {/* CustomAlert 대신 ToastNotification 렌더링 및 ref 연결 */}
+      <ToastNotification ref={toastRef} />
+
       <DatePointWrapper>
         <PointInfo>
           <span>포인트:</span>
@@ -127,6 +122,8 @@ function DatePointSection() {
         <AttendanceConfirmModal
           onConfirm={handleAttendanceConfirm}
           onCancel={() => setIsModalOpen(false)}
+          // 모달에 toastRef prop을 전달 ( showAlert 대신)
+          toastRef={toastRef}
         />
       )}
     </>

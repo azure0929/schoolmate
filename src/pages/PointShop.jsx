@@ -1,10 +1,17 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import styled from "styled-components";
 import TopMenu from "@/components/mainpage/TopMenu";
 import { MdSearch } from "react-icons/md";
 import ProductExchangeModal from "@/components/modals/ProductExchangeModal";
 import PaginationControls from "@/components/common/PaginationControls";
 import api from "@/api/index";
+import { gsap } from "gsap";
 
 // 배열을 무작위로 섞는 함수 (Fisher-Yates 셔플)
 const shuffleArray = (array) => {
@@ -19,23 +26,54 @@ const shuffleArray = (array) => {
 const PRIMARY_COLOR = "#f86166";
 const ITEMS_PER_PAGE = 12;
 
-const ProductItemComponent = ({ product, isSelected, onClick }) => (
-  <ProductItem
-    $selected={isSelected}
-    onClick={() => onClick(product.productId)}
-  >
-    <ProductImage src={product.imageUrl} alt={product.productName} />
-    <ProductInfo>
-      <ProductSubInfo>{product.subInfo}</ProductSubInfo>
-      <ProductTitle>{product.productName}</ProductTitle>
-      <ProductPoint>
-        {new Intl.NumberFormat().format(product.productPoints)}P
-      </ProductPoint>
-    </ProductInfo>
-  </ProductItem>
+// 애니메이션을 위한 ref를 받도록 ProductItemComponent 수정 (React.forwardRef 유지)
+const ProductItemComponent = React.forwardRef(
+  ({ product, isSelected, onClick }, ref) => (
+    <ProductItem
+      ref={ref} // ref 전달
+      $selected={isSelected}
+      onClick={() => onClick(product.productId)}
+    >
+      <ProductImage src={product.imageUrl} alt={product.productName} />
+      <ProductInfo>
+        <ProductSubInfo>{product.subInfo}</ProductSubInfo>
+        <ProductTitle>{product.productName}</ProductTitle>
+        <ProductPoint>
+          {new Intl.NumberFormat().format(product.productPoints)}P
+        </ProductPoint>
+      </ProductInfo>
+    </ProductItem>
+  ),
 );
 
 function ProductList({ products = [], isLoading, selectedItemId, onSelect }) {
+  const containerRef = useRef();
+
+  useEffect(() => {
+    if (products.length > 0 && containerRef.current) {
+      const ctx = gsap.context(() => {
+        // 모든 상품 항목을 선택
+        const items = gsap.utils.toArray(containerRef.current.children);
+
+        // 애니메이션 초기화 (안전성을 위해)
+        gsap.set(items, { opacity: 0, y: 50, scale: 0.9 });
+
+        // 독특한 진입 애니메이션: 아래에서 살짝 올라오며 불투명해지는 효과를 staggered하게 적용
+        gsap.to(items, {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          duration: 0.6,
+          ease: "power2.out",
+          // Staggered delay (0.05초 간격으로 순차적으로 애니메이션 실행)
+          stagger: 0.05,
+        });
+      }, containerRef); // Scope the animation to containerRef
+
+      return () => ctx.revert(); // Clean up GSAP animations
+    }
+  }, [products]); // 상품 목록이 변경될 때마다 재실행 (페이지 변경, 필터 변경 등)
+
   if (isLoading) {
     return (
       <GridContainer>
@@ -52,7 +90,7 @@ function ProductList({ products = [], isLoading, selectedItemId, onSelect }) {
   }
 
   return (
-    <GridContainer>
+    <GridContainer ref={containerRef}>
       {products.map((product) => (
         <ProductItemComponent
           key={product.productId}
@@ -124,6 +162,7 @@ function PointShop() {
     let sorted = [...filtered];
 
     if (sortOrder === "random") {
+      // 검색 필터가 적용된 상태에서만 다시 셔플하거나, 초기 목록을 사용
       sorted = filterTerm ? shuffleArray(filtered) : initialProducts;
     } else if (sortOrder === "lowPoint") {
       sorted.sort((a, b) => a.productPoints - b.productPoints);
@@ -145,6 +184,7 @@ function PointShop() {
   }, [selectedItemId, processedProducts]);
 
   useEffect(() => {
+    // 페이지네이션, 정렬, 필터 변경 시 선택 항목 초기화
     setSelectedItemId(null);
   }, [currentPage, sortOrder, filterTerm]);
 
@@ -165,7 +205,6 @@ function PointShop() {
   // 페이지네이션 계산
   const totalItems = processedProducts.length;
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
-  // const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1); // PaginationControls에서 처리
 
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const currentProducts = processedProducts.slice(
@@ -176,7 +215,6 @@ function PointShop() {
   if (error) {
     return (
       <PointShopWrap>
-        <Header />
         <TopMenu />
         <ErrorTitle>{error}</ErrorTitle>
       </PointShopWrap>
@@ -432,6 +470,7 @@ const ProductImage = styled.img`
   max-height: 242px;
   object-fit: cover;
   border-radius: 4px;
+  object-fit: cover;
 
   @media (max-width: 768px) {
     max-height: 180px;
