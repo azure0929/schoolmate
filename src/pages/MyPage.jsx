@@ -88,7 +88,6 @@ const MyPage = () => {
 
 export default MyPage;
 
-// --- Styled Components ---
 const PageWrapper = styled.div`
   display: flex;
   flex-direction: column;

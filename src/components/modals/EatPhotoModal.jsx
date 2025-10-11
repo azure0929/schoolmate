@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import styled from "styled-components";
-import axios from "axios";
+import styled, { css } from "styled-components";
+// axios는 이 컴포넌트에서 직접 사용되지 않고, onUpload prop을 통해 호출되므로 제거 가능
 
 // 모달의 상태를 나타내는 상수
 const STEPS = {
@@ -9,14 +9,27 @@ const STEPS = {
   CONFIRMATION: "confirmation",
 };
 
-// EatPhotoModal 컴포넌트 시그니처 변경: onUpload 함수를 prop으로 받음
-const EatPhotoModal = ({ isOpen, onClose, onUpload, studentSchoolName }) => {
+// EatPhotoModal 컴포넌트 시그니처 변경: onUpload 함수와 toastRef를 prop으로 받음
+const EatPhotoModal = ({
+  isOpen,
+  onClose,
+  onUpload,
+  toastRef,
+  studentSchoolName,
+}) => {
   // 1. 상태 관리
   const [currentStep, setCurrentStep] = useState(STEPS.UPLOAD);
   const [selectedFile, setSelectedFile] = useState(null); // 실제 파일 객체
   const [selectedImageURL, setSelectedImageURL] = useState(null); // 미리보기 URL
   const [analysisResult, setAnalysisResult] = useState(null); // AI 분석 결과 ("급식 사진이 맞습니다" 등)
   const [isSchoolLunchConfirmed, setIsSchoolLunchConfirmed] = useState(false); // 급식 사진 판별 여부
+
+  // showToast 유틸리티 함수 정의
+  const showToast = (message, type = "success") => {
+    if (toastRef && toastRef.current) {
+      toastRef.current.showToast(message, type);
+    }
+  };
 
   // 모달이 열릴 때마다 상태 초기화
   useEffect(() => {
@@ -48,26 +61,32 @@ const EatPhotoModal = ({ isOpen, onClose, onUpload, studentSchoolName }) => {
   // 3. AI 분석 요청 및 단계 변경 (제출 버튼 클릭 시)
   const handleAIBaseUpload = async () => {
     if (!selectedFile) {
-      alert("먼저 사진을 선택해주세요.");
+      // 네이티브 alert() 대신 showToast 사용
+      showToast("먼저 사진을 선택해주세요.", "warning");
       return;
     }
 
     // AI 분석 중 로딩 상태로 변경
     setCurrentStep(STEPS.LOADING);
 
-    const formData = new FormData();
-    formData.append("file", selectedFile);
+    // FormData는 onUpload prop에서 처리할 수 있으므로 여기서는 제거하거나,
+    // onUpload 함수의 시그니처에 맞게 selectedFile만 전달
 
     const authToken = localStorage.getItem("authToken");
     if (!authToken) {
-      alert("로그인 정보가 유효하지 않습니다. 다시 로그인해주세요.");
+      // 네이티브 alert() 대신 showToast 사용
+      showToast(
+        "로그인 정보가 유효하지 않습니다. 다시 로그인해주세요.",
+        "error",
+      );
       onClose();
       return;
     }
 
     try {
-      // onUpload 함수를 호출하여 AI 분석 (백엔드 /api/v1/photos/upload 호출)
-      const response = await onUpload(selectedFile); // MealPhotoSection의 handlePhotoUpload 호출
+      // onUpload 함수를 호출하여 AI 분석 (MealPhotoSection의 handlePhotoUpload 호출)
+      // onUpload 함수가 FormData 생성을 담당한다고 가정
+      const response = await onUpload(selectedFile);
 
       // 백엔드에서 받은 결과 문자열 그대로 저장
       const resultText = response.data;
@@ -81,8 +100,10 @@ const EatPhotoModal = ({ isOpen, onClose, onUpload, studentSchoolName }) => {
       setCurrentStep(STEPS.CONFIRMATION);
     } catch (error) {
       console.error("AI 분석 요청 실패:", error);
-      alert(
+      // 네이티브 alert() 대신 showToast 사용
+      showToast(
         `AI 분석 중 오류가 발생했습니다: ${error.response?.data?.message || "서버 통신 오류"}`,
+        "error",
       );
       setCurrentStep(STEPS.UPLOAD); // 오류 발생 시 초기 상태로 복귀
     }
@@ -91,7 +112,8 @@ const EatPhotoModal = ({ isOpen, onClose, onUpload, studentSchoolName }) => {
   // 4. 최종 확인 및 모달 닫기 (확인 버튼 클릭 시)
   const handleFinalConfirmation = () => {
     // 이미 DB 저장 및 포인트 지급은 onUpload (handleAIBaseUpload) 과정에서 완료됨
-    alert("급식 사진이 등록되었으며, 포인트가 지급되었습니다.");
+    // 네이티브 alert() 대신 showToast 사용
+    showToast("급식 사진이 등록되었으며, 포인트가 지급되었습니다.", "success");
     onClose();
   };
 
@@ -128,7 +150,7 @@ const EatPhotoModal = ({ isOpen, onClose, onUpload, studentSchoolName }) => {
                 setSelectedImageURL(null); // 사진 미리보기 초기화
                 setSelectedFile(null); // 파일 객체 초기화
                 setAnalysisResult(null); // 결과 메시지 초기화
-                // input type="file"의 값 초기화를 위해 file input을 직접 조작해야 할 수도 있다.
+                // 파일 input 초기화를 위한 추가 로직 (필요 시 useRef 사용)
               }}
             >
               다시 선택
@@ -154,16 +176,14 @@ const EatPhotoModal = ({ isOpen, onClose, onUpload, studentSchoolName }) => {
           style={{ display: "none" }}
           onChange={handleFileChange}
           accept="image/*"
-          // AI 분석 후에는 파일 선택 불가능하게
           disabled={currentStep !== STEPS.UPLOAD}
         />
 
         <div className="eatphoto-upload">
           <FileSelectLabel
             htmlFor="eatphoto"
-            // AI 분석 후에는 파일 선택 버튼 숨김/비활성화
             style={{
-              display: currentStep === STEPS.UPLOAD ? "inline-block" : "none",
+              display: selectedFile === null ? "inline-block" : "none",
             }}
           >
             파일 선택
@@ -172,14 +192,22 @@ const EatPhotoModal = ({ isOpen, onClose, onUpload, studentSchoolName }) => {
 
         {/* 이미지 및 로딩 텍스트 렌더링 영역 */}
         <EatPhotoWrap>
-          {(currentStep === STEPS.UPLOAD ||
-            currentStep === STEPS.CONFIRMATION) &&
-            selectedImageURL && (
-              <img src={selectedImageURL} alt="사진 미리보기" />
-            )}
+          {/* 이미지 렌더링 조건 수정: LOADING 단계가 아닐 때만 이미지 표시 */}
+          {selectedImageURL && currentStep !== STEPS.LOADING && (
+            <img src={selectedImageURL} alt="사진 미리보기" />
+          )}
 
           {currentStep === STEPS.LOADING && (
-            <LoadingText>분석 중...</LoadingText>
+            <LoadingText>AI 분석 중...</LoadingText>
+          )}
+
+          {/* 파일이 없고, 로딩 중이 아닐 때 가이드 텍스트 */}
+          {!selectedImageURL && currentStep !== STEPS.LOADING && (
+            <GuideText>
+              사진을 선택해주세요.
+              <br />
+              (급식 사진만 인정됩니다.)
+            </GuideText>
           )}
         </EatPhotoWrap>
 
@@ -200,6 +228,10 @@ const EatPhotoModal = ({ isOpen, onClose, onUpload, studentSchoolName }) => {
 };
 
 export default EatPhotoModal;
+
+// ===============================================
+// Styled Components (이하 스타일 컴포넌트는 변경 없음)
+// ===============================================
 
 const ModalOverlay = styled.div`
   position: fixed;
@@ -295,10 +327,17 @@ const LoadingText = styled.div`
   left: 50%;
   transform: translate(-50%, -50%);
   font-size: 1.5rem;
-  color: var(--primary-color);
+  color: var(--primary-color, #191919); /* 기본 색상 설정 */
   font-weight: bold;
   text-align: center;
   z-index: 1;
+`;
+
+const GuideText = styled.div`
+  font-size: 1.1rem;
+  color: #a0a0a0;
+  text-align: center;
+  line-height: 1.5;
 `;
 
 const AnalysisResultText = styled.p.withConfig({

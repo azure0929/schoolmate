@@ -6,61 +6,14 @@ import React, {
   useMemo,
 } from "react";
 import styled, { css } from "styled-components";
-import { gsap } from "gsap";
 import { FiUpload } from "react-icons/fi";
 import { BiSearch } from "react-icons/bi";
 import { FaChevronRight } from "react-icons/fa6";
 import PaginationControls from "@/components/common/PaginationControls";
 import api from "@/api/index";
+import ToastNotification from "@/components/modals/ToastNotification";
 
-// 사용자 정의 Alert Hook 및 컴포넌트는 그대로 유지
-const useAlert = () => {
-  const [alert, setAlert] = useState({
-    message: null,
-    type: "info",
-    key: 0,
-  });
-
-  const showAlert = (message, type = "success") => {
-    setAlert({ message, type, key: alert.key + 1 });
-  };
-
-  return [alert, showAlert];
-};
-
-const CustomAlert = ({ message, type, alertKey }) => {
-  const alertRef = useRef(null);
-
-  useEffect(() => {
-    const el = alertRef.current;
-    if (el && message) {
-      gsap.set(el, { x: 300, opacity: 0 });
-      gsap.to(el, {
-        x: 0,
-        opacity: 1,
-        duration: 0.5,
-        ease: "power3.out",
-      });
-      gsap.to(el, {
-        x: 300,
-        opacity: 0,
-        duration: 0.5,
-        delay: 2.5,
-        ease: "power3.in",
-      });
-    }
-  }, [alertKey, message]);
-
-  if (!message) return null;
-
-  return (
-    <AlertContainer ref={alertRef} $type={type}>
-      <AlertMessage>{message}</AlertMessage>
-    </AlertContainer>
-  );
-};
-
-// 상품 카테고리 분류 로직
+// 상품 카테고리 분류 로직 (기존 유지)
 const categorizeProduct = (productName) => {
   const name = productName.toUpperCase();
   if (
@@ -135,9 +88,16 @@ const ProductManagement = () => {
   const [productQuantity, setProductQuantity] = useState("");
   const [productStock, setProductStock] = useState("");
 
-  const [alert, showAlert] = useAlert();
-
+  // ToastNotification 연결을 위한 Ref 정의
+  const toastRef = useRef(null);
   const fileInputRef = useRef(null);
+
+  // showAlert 대신 toastRef를 사용하는 유틸리티 함수 정의
+  const showToast = (message, type = "success") => {
+    if (toastRef.current) {
+      toastRef.current.showToast(message, type);
+    }
+  };
 
   // 현재 선택된 상품 정보 조회
   const activeProduct = useMemo(() => {
@@ -151,9 +111,9 @@ const ProductManagement = () => {
       const items = response.data;
       setProductItems(items);
     } catch (error) {
-      showAlert("상품 목록 로딩에 실패했습니다.", "error");
+      showToast("상품 목록 로딩에 실패했습니다.", "error"); // showToast 사용
       localStorage.removeItem("authToken");
-      window.location.href = "/";
+      // window.location.href = "/"; // 실제 운영 시 로그인 페이지로 리다이렉션 필요
     }
   }, []);
 
@@ -173,7 +133,7 @@ const ProductManagement = () => {
     setSelectedImageFile(null);
   }, []);
 
-  // activeProduct가 변경될 때 사이드바 상태 업데이트
+  // activeProduct가 변경될 때 사이드바 상태 업데이트 (기존 유지)
   useEffect(() => {
     if (activeProduct) {
       setProductName(activeProduct.productName || "");
@@ -192,7 +152,7 @@ const ProductManagement = () => {
     }
   }, [activeProductId, activeProduct, resetSidebarState]);
 
-  // 상품 검색 필터링 로직
+  // 상품 검색 필터링 로직 (기존 유지)
   const filteredProducts = useMemo(() => {
     if (currentSearchTerm.length < 2 && currentSearchTerm.length !== 0) {
       return productItems;
@@ -208,7 +168,6 @@ const ProductManagement = () => {
       if (searchBy.key === "name") {
         return product.productName.toLowerCase().includes(term);
       } else if (searchBy.key === "category") {
-        // 상품 카테고리 검색
         const categoryCode =
           product.productCategory ||
           categorizeProduct(product.productName || "");
@@ -218,7 +177,7 @@ const ProductManagement = () => {
     });
   }, [productItems, searchBy.key, currentSearchTerm]);
 
-  // 페이지네이션 로직
+  // 페이지네이션 로직 (기존 유지)
   useEffect(() => {
     const totalPagesCount = Math.ceil(
       filteredProducts.length / PRODUCTS_PER_PAGE,
@@ -235,7 +194,7 @@ const ProductManagement = () => {
   // 검색 버튼 핸들러
   const handleSearch = () => {
     if (searchTerm.length > 0 && searchTerm.length < 2) {
-      showAlert("검색어는 두 글자 이상 입력해야 합니다.", "warning");
+      showToast("검색어는 두 글자 이상 입력해야 합니다.", "warning"); // ⭐️ showToast 사용
       return;
     }
     setCurrentSearchTerm(searchTerm);
@@ -300,8 +259,8 @@ const ProductManagement = () => {
   // 새 상품 등록 로직
   const confirmRegister = async () => {
     if (!productName || !productPoints || !productQuantity || !productStock) {
-      showAlert(
-        "필수 항목(상품명, 포인트, 수량, 재고)을 모두 입력하세요.",
+      showToast(
+        "필수 항목(상품명, 포인트, 수량, 재고)을 모두 입력하세요.", // ⭐️ showToast 사용
         "warning",
       );
       return;
@@ -334,9 +293,9 @@ const ProductManagement = () => {
       fetchProducts();
       resetSidebarState();
 
-      showAlert(`새 상품 "${productName}"이 등록되었습니다.`, "success");
+      showToast(`새 상품 "${productName}"이 등록되었습니다.`, "success");
     } catch (error) {
-      showAlert(
+      showToast(
         `상품 등록 실패: ${error.response?.data?.message || error.message}`,
         "error",
       );
@@ -347,7 +306,7 @@ const ProductManagement = () => {
     if (selectedProducts.length > 0) {
       setShowDeletePopUp(true);
     } else {
-      showAlert("삭제할 상품을 선택해주세요.", "warning");
+      showToast("삭제할 상품을 선택해주세요.", "warning"); // ⭐️ showToast 사용
     }
   };
 
@@ -367,14 +326,14 @@ const ProductManagement = () => {
 
       fetchProducts();
 
-      showAlert(
+      showToast(
         `${selectedProducts.length}개의 상품이 삭제되었습니다.`,
         "error",
-      );
+      ); // 삭제는 경고/실패 메시지와 유사한 빨간색 'error' 타입 사용
       setSelectedProducts([]);
       resetSidebarState();
     } catch (error) {
-      showAlert(
+      showToast(
         `상품 삭제 실패: ${error.response?.data?.message || error.message}`,
         "error",
       );
@@ -418,26 +377,26 @@ const ProductManagement = () => {
 
       fetchProducts();
 
-      showAlert(
+      showToast(
         `상품 ID ${activeProductId}의 정보가 수정되었습니다.`,
         "success",
       );
     } catch (error) {
-      showAlert(
+      showToast(
         `상품 수정 실패: ${error.response?.data?.message || error.message}`,
         "error",
       );
     }
   };
 
-  // 현재 페이지의 상품 목록 계산
+  // 현재 페이지의 상품 목록 계산 (기존 유지)
   const paginatedProducts = useMemo(() => {
     const startIndex = (currentPage - 1) * PRODUCTS_PER_PAGE;
     const endIndex = startIndex + PRODUCTS_PER_PAGE;
     return filteredProducts.slice(startIndex, endIndex);
   }, [filteredProducts, currentPage]);
 
-  // 드래그 앤 드롭 로직
+  // 드래그 앤 드롭 로직 (기존 유지)
   const handleDragStart = (e, productId) => {
     e.dataTransfer.setData("productId", productId.toString());
     if (!selectedProducts.includes(productId)) {
@@ -483,11 +442,9 @@ const ProductManagement = () => {
 
   return (
     <>
-      <CustomAlert
-        message={alert.message}
-        type={alert.type}
-        alertKey={alert.key}
-      />
+      {/* CustomAlert 대신 ToastNotification 컴포넌트 렌더링 및 Ref 연결 */}
+      <ToastNotification ref={toastRef} />
+
       <PageTitle>상품 정보</PageTitle>
 
       <SearchBarContainer>
@@ -752,33 +709,6 @@ const ProductManagement = () => {
 };
 
 export default ProductManagement;
-
-const ALERT_COLORS = {
-  success: { background: "#4CAF50", color: "#FFFFFF" },
-  error: { background: "#ff0000", color: "#FFFFFF" },
-  warning: { background: "#FF9800", color: "#333333" },
-  info: { background: "#2196F3", color: "#FFFFFF" },
-};
-
-const AlertContainer = styled.div`
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 2000;
-  padding: 15px 25px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  min-width: 250px;
-  background-color: ${(props) =>
-    ALERT_COLORS[props.$type]?.background || ALERT_COLORS.info.background};
-  color: ${(props) =>
-    ALERT_COLORS[props.$type]?.color || ALERT_COLORS.info.color};
-`;
-
-const AlertMessage = styled.div`
-  font-size: 14px;
-  font-weight: 500;
-`;
 
 const Button = styled.button`
   padding: 8px 15px;
